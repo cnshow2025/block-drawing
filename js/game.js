@@ -34,7 +34,7 @@
 
   // ── 畫面切換 ───────────────────────────────────────────────
   function show(screenId, theme) {
-    ['screen-title', 'screen-levels', 'screen-play'].forEach(function (id) {
+    ['screen-title', 'screen-levels', 'screen-stats', 'screen-play'].forEach(function (id) {
       $(id).classList.toggle('is-active', id === screenId);
     });
     if (theme) document.body.dataset.theme = theme;
@@ -74,14 +74,54 @@
   }
 
   // ── 標題頁 ─────────────────────────────────────────────────
+  function esc(text) {
+    return String(text).replace(/[&<>"']/g, function (ch) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+  }
+
+  /** 從頭找出第一關還沒過的關卡；全破了就回 null */
+  function nextUnclearedLevel() {
+    for (var i = 0; i < Levels.LIST.length; i++) {
+      if (!Storage.recordOf(Levels.LIST[i].id).cleared) return Levels.LIST[i];
+    }
+    return null;
+  }
+
   function refreshTitle() {
     var total = Storage.totalStars();
     var max = Levels.LIST.length * 3;
     var streak = Storage.dailyStreak();
+    var name = Storage.getName();
+    var pending = nextUnclearedLevel();
+    var started = pending !== Levels.LIST[0];
+
+    $('title-greeting').textContent = name ? '哈囉，' + name + ' 👋' : '';
+    $('btn-continue').hidden = !started;
+    $('btn-start').hidden = started;
+    $('btn-continue').textContent = pending
+      ? '繼續遊戲　' + pending.id
+      : '繼續遊戲';
+
     $('title-progress').textContent = (total > 0
       ? '已收集 ' + total + ' / ' + max + ' 顆星星'
       : '五個世界，三十道關卡')
       + (streak > 0 ? '　🔥 每日挑戰連續 ' + streak + ' 天' : '');
+  }
+
+  /** 接著上次打——直接跳到第一關還沒過的關卡 */
+  function continueGame() {
+    var lv = nextUnclearedLevel();
+    if (lv) { startLevel(lv); return; }
+    buildLevelSelect();
+    show('screen-levels', lastTheme);
+    openModal([
+      '<h3>全破了！</h3>',
+      '<p>三十道關卡都通關了。回關卡選單挑一關重打，把還沒拿到的星星補齊吧。</p>',
+      '<div class="modal__actions"><button class="btn btn--primary" data-act="ok">好</button></div>'
+    ].join(''), function (card) {
+      card.querySelector('[data-act="ok"]').addEventListener('click', closeModal);
+    });
   }
 
   // ── 關卡選單 ───────────────────────────────────────────────
@@ -338,6 +378,133 @@
     setTimeout(function () { showResult(result, saved); }, 260);
   }
 
+  // ── 我的成績 ───────────────────────────────────────────────
+  function summarize() {
+    var stars = 0, cleared = 0, perfect = 0, fillSum = 0, fillCount = 0;
+    Levels.LIST.forEach(function (lv) {
+      var rec = Storage.recordOf(lv.id);
+      stars += rec.stars;
+      if (rec.cleared) cleared++;
+      if (rec.stars === 3) perfect++;
+      if (rec.best > 0) { fillSum += rec.best; fillCount++; }
+    });
+    return {
+      stars: stars,
+      maxStars: Levels.LIST.length * 3,
+      cleared: cleared,
+      total: Levels.LIST.length,
+      perfect: perfect,
+      avgFill: fillCount ? fillSum / fillCount : 0,
+      streak: Storage.dailyStreak(),
+      dailyDone: Storage.dailyClearedCount()
+    };
+  }
+
+  function tile(label, value, note) {
+    return '<div class="tile"><span class="tile__label">' + label + '</span>' +
+           '<b class="tile__value">' + value + '</b>' +
+           (note ? '<span class="tile__note">' + note + '</span>' : '') + '</div>';
+  }
+
+  function buildStats() {
+    var sum = summarize();
+    var name = Storage.getName();
+    var out = [];
+
+    // 整頁只放一個主數字，其餘一律是次級的 stat tile
+    out.push('<section class="hero">');
+    out.push('<span class="hero__label">' + (name ? esc(name) + '的星星收藏' : '星星收藏') + '</span>');
+    out.push('<b class="hero__value">' + sum.stars + '</b>');
+    out.push('<span class="hero__unit">/ ' + sum.maxStars + ' 顆星星</span>');
+    out.push('</section>');
+
+    out.push('<div class="tiles">');
+    out.push(tile('完成關卡', sum.cleared + ' / ' + sum.total,
+      sum.cleared === sum.total ? '全部通關' : '還剩 ' + (sum.total - sum.cleared) + ' 關'));
+    out.push(tile('三星關卡', sum.perfect + ' / ' + sum.total,
+      sum.perfect === sum.total ? '完美' : '還有 ' + (sum.total - sum.perfect) + ' 關可以拚'));
+    out.push(tile('平均填滿率', sum.avgFill ? sum.avgFill.toFixed(1) + '%' : '—',
+      sum.cleared ? '已挑戰過的關卡' : '還沒有紀錄'));
+    out.push(tile('每日挑戰', sum.dailyDone + ' 天',
+      sum.streak > 0 ? '🔥 連續 ' + sum.streak + ' 天' : '今天還沒挑戰'));
+    out.push('</div>');
+
+    // 每關明細
+    out.push('<h3 class="stats-heading">每關明細</h3>');
+    Levels.WORLDS.forEach(function (world) {
+      out.push('<div class="table-block" style="--w-color:' + themeColor(world.theme) + '">');
+      out.push('<h4 class="table-block__title"><span class="world__no">世界 ' + world.id + '</span>' + world.name + '</h4>');
+      out.push('<table class="stats-table"><thead><tr>' +
+        '<th>關卡</th><th>星等</th><th class="num">最佳填滿率</th><th>狀態</th>' +
+        '</tr></thead><tbody>');
+      Levels.inWorld(world.id).forEach(function (lv) {
+        var rec = Storage.recordOf(lv.id);
+        var unlocked = Storage.isUnlocked(lv.id, Levels.LIST);
+        var state = rec.stars === 3 ? '三星達成'
+          : rec.cleared ? '已通關'
+          : unlocked ? '可挑戰' : '未解鎖';
+        out.push('<tr class="' + (rec.cleared ? 'is-cleared' : '') + '">' +
+          '<td><b>' + lv.id + '</b> ' + lv.name + '</td>' +
+          '<td class="stars">' + Render.starsHtml(rec.stars) + '</td>' +
+          '<td class="num">' + (rec.best > 0 ? rec.best + '%' : '—') + '</td>' +
+          '<td class="state state--' + (rec.cleared ? 'done' : unlocked ? 'open' : 'lock') + '">' + state + '</td>' +
+          '</tr>');
+      });
+      out.push('</tbody></table></div>');
+    });
+
+    // 每日挑戰歷史
+    var history = Storage.dailyHistory(14);
+    out.push('<h3 class="stats-heading">每日挑戰紀錄</h3>');
+    if (!history.length) {
+      out.push('<p class="stats-empty">還沒有挑戰過。每天會換一題，題目由當天日期決定。</p>');
+    } else {
+      out.push('<div class="table-block" style="--w-color:#e0409a">');
+      out.push('<table class="stats-table"><thead><tr>' +
+        '<th>日期</th><th>星等</th><th class="num">填滿率</th>' +
+        '</tr></thead><tbody>');
+      history.forEach(function (row) {
+        out.push('<tr class="' + (row.record.cleared ? 'is-cleared' : '') + '">' +
+          '<td><b>' + row.date + '</b></td>' +
+          '<td class="stars">' + Render.starsHtml(row.record.stars) + '</td>' +
+          '<td class="num">' + (row.record.best > 0 ? row.record.best + '%' : '—') + '</td>' +
+          '</tr>');
+      });
+      out.push('</tbody></table></div>');
+    }
+
+    $('stats-body').innerHTML = out.join('');
+  }
+
+  function askName(first) {
+    openModal([
+      '<h3>' + (first ? '歡迎來到方塊填色' : '改個名字') + '</h3>',
+      '<p>' + (first
+        ? '先取個名字吧，成績頁會記住你的紀錄。不填也可以，之後隨時能改。'
+        : '想換個名字就改這裡，紀錄不會受影響。') + '</p>',
+      '<input class="name-input" id="name-input" maxlength="16" autocomplete="off" ' +
+        'placeholder="你的名字" value="' + esc(Storage.getName()) + '">',
+      '<div class="modal__actions">',
+      '<button class="btn" data-act="skip">' + (first ? '先不用' : '取消') + '</button>',
+      '<button class="btn btn--primary" data-act="ok">' + (first ? '開始吧' : '存起來') + '</button>',
+      '</div>'
+    ].join(''), function (card) {
+      var input = card.querySelector('#name-input');
+      function save() {
+        Storage.setName(input.value);
+        closeModal();
+        refreshTitle();
+        if ($('screen-stats').classList.contains('is-active')) buildStats();
+      }
+      card.querySelector('[data-act="ok"]').addEventListener('click', save);
+      card.querySelector('[data-act="skip"]').addEventListener('click', closeModal);
+      input.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+      });
+      setTimeout(function () { input.focus(); }, 60);
+    });
+  }
+
   // ── 彈窗 ───────────────────────────────────────────────────
   function openModal(html, wire) {
     refs.modalCard.innerHTML = html;
@@ -407,6 +574,7 @@
       '<li>放錯了可以把方塊<b>從畫框裡拖回來</b>，或按「復原」。</li>',
       '<li><b>精準拼合</b>關卡必須完全填滿；<b>填滿計分</b>關卡則是填越滿星星越多。</li>',
       '<li><b>每日挑戰</b>每天換一題，題目由當天日期決定，全世界同一題；連續挑戰會累積天數。</li>',
+      '<li>進度存在這台裝置上，關掉再開會從<b>還沒過的那一關</b>接著打；「我的成績」可以看每一關的星數與最佳填滿率。</li>',
       '<li>電腦鍵盤：<b>R</b> 旋轉、<b>F</b> 翻轉、<b>Ctrl+Z</b> 復原。</li>',
       '</ul>',
       '<div class="modal__actions"><button class="btn btn--primary" data-act="ok">知道了</button></div>'
@@ -581,10 +749,22 @@
 
   // ── 事件綁定 ───────────────────────────────────────────────
   function bind() {
-    $('btn-start').addEventListener('click', function () {
+    function openLevels() {
       buildLevelSelect();
       show('screen-levels', lastTheme);
+    }
+    $('btn-start').addEventListener('click', openLevels);
+    $('btn-levels').addEventListener('click', openLevels);
+    $('btn-continue').addEventListener('click', continueGame);
+    $('btn-stats').addEventListener('click', function () {
+      buildStats();
+      show('screen-stats', lastTheme);
     });
+    $('btn-stats-back').addEventListener('click', function () {
+      refreshTitle();
+      show('screen-title', 'mint');
+    });
+    $('btn-rename').addEventListener('click', function () { askName(false); });
     $('btn-daily').addEventListener('click', startDaily);
     $('daily-card').addEventListener('click', startDaily);
     $('btn-howto').addEventListener('click', showHowTo);
@@ -656,4 +836,6 @@
   Input.init(handlers);
   bind();
   refreshTitle();
+  // 完全沒玩過、也還沒取過名字時，開場問一次
+  if (!Storage.getName() && Storage.totalStars() === 0) askName(true);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -21,11 +21,17 @@
     <i style="--h:275"></i><i style="--h: 42"></i><i style="--h:330"></i>
   </div>
   <h1 class="title">方塊填色</h1>
+  <p class="greeting" id="title-greeting"></p>
   <p class="subtitle">把繽紛方塊拼進畫框<br>填得越滿，星星越多</p>
   <div class="title-actions">
+    <button class="btn btn--primary" id="btn-continue" hidden>繼續遊戲</button>
     <button class="btn btn--primary" id="btn-start">開始遊戲</button>
-    <button class="btn" id="btn-daily">每日挑戰</button>
-    <button class="btn" id="btn-howto">怎麼玩</button>
+  </div>
+  <div class="title-actions title-actions--sub">
+    <button class="btn btn--small" id="btn-levels">關卡選單</button>
+    <button class="btn btn--small" id="btn-daily">每日挑戰</button>
+    <button class="btn btn--small" id="btn-stats">我的成績</button>
+    <button class="btn btn--small" id="btn-howto">怎麼玩</button>
   </div>
   <p class="title-progress" id="title-progress"></p>
 </section>
@@ -44,6 +50,16 @@
   <footer class="levels-footer">
     <button class="btn btn--ghost" id="btn-reset-progress">清除進度</button>
   </footer>
+</section>
+
+<!-- ───────── 我的成績 ───────── -->
+<section class="screen screen--stats" id="screen-stats">
+  <header class="topbar">
+    <button class="icon-btn" id="btn-stats-back" aria-label="回標題頁">←</button>
+    <h2 class="topbar__title">我的成績</h2>
+    <button class="icon-btn" id="btn-rename" aria-label="改名字">✎</button>
+  </header>
+  <div class="stats-body" id="stats-body"></div>
 </section>
 
 <!-- ───────── 遊戲頁 ───────── -->

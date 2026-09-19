@@ -76,6 +76,23 @@
 
   function dailyRecord(dateKey) { return recordOf('daily-' + dateKey); }
 
+  /** 每日挑戰的歷史紀錄，新的排前面 */
+  function dailyHistory(limit) {
+    var out = [];
+    Object.keys(progress).forEach(function (k) {
+      if (isDailyId(k)) out.push({ date: k.slice(6), record: progress[k] });
+    });
+    out.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    return limit ? out.slice(0, limit) : out;
+  }
+
+  function dailyClearedCount() {
+    return dailyHistory().filter(function (d) { return d.record.cleared; }).length;
+  }
+
+  function getName() { return prefs.name || ''; }
+  function setName(value) { setPref('name', String(value || '').trim().slice(0, 16)); }
+
   function clearAll() {
     progress = {};
     write(KEY, progress);
@@ -92,6 +109,10 @@
     totalStars: totalStars,
     dailyStreak: dailyStreak,
     dailyRecord: dailyRecord,
+    dailyHistory: dailyHistory,
+    dailyClearedCount: dailyClearedCount,
+    getName: getName,
+    setName: setName,
     clearAll: clearAll,
     getPref: getPref,
     setPref: setPref
