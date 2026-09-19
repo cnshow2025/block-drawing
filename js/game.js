@@ -197,6 +197,9 @@
 
   // ── 開始一關 ───────────────────────────────────────────────
   function startLevel(lv) {
+    // 若還有拖曳沒結束（例如按了「重來」），先收乾淨再換關，
+    // 免得殘留的拖曳指向上一局的方塊。
+    Input.cancelAll();
     level = lv;
     try {
       state = Board.createGame(lv);

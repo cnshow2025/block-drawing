@@ -24,7 +24,11 @@
 
   /** 從方塊盤或棋盤上按下方塊 */
   function begin(ev, piece, sourceEl, fromBoard) {
-    if (drag || ev.button === 2) return;
+    if (ev.button === 2) return;
+    // 上一次拖曳若沒收到放開事件（在視窗外放手、系統手勢接管、第二根手指誤觸），
+    // 殘留的 drag 會讓之後每一次按下都被擋掉，看起來就像整個遊戲當掉。
+    // 這裡先把它收乾淨，讓遊戲自己復原。
+    if (drag) abort();
     ev.preventDefault();
 
     var rect = sourceEl ? sourceEl.getBoundingClientRect() : null;
@@ -42,12 +46,32 @@
       grabX: fromBoard && rect ? ev.clientX - rect.left : null,
       grabY: fromBoard && rect ? ev.clientY - rect.top : null,
       moved: false,
-      layer: null
+      layer: null,
+      captureHost: null
     };
 
+    attach(ev);
+  }
+
+  /**
+   * 掛上事件，並讓棋盤「捕捉」這個指標。
+   * 捕捉之後就算手指移出瀏覽器視窗，move 與 up 仍然會送回來，
+   * 不捕捉的話在視窗外放手就永遠收不到放開事件。
+   */
+  function attach(ev) {
+    var host = ctx.refs.board;
+    if (host && host.setPointerCapture) {
+      try {
+        host.setPointerCapture(ev.pointerId);
+        drag.captureHost = host;
+      } catch (e) { /* 瀏覽器不支援就退回純 window 監聽 */ }
+    }
     window.addEventListener('pointermove', onMove, { passive: false });
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('lostpointercapture', onLost);
+    window.addEventListener('blur', onInterrupt);
+    document.addEventListener('visibilitychange', onVisibility);
   }
 
   function makeLayer() {
@@ -167,9 +191,41 @@
   }
 
   function detach() {
+    // 先移除監聽再釋放捕捉，否則釋放時觸發的 lostpointercapture 會再繞回來一次
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onCancel);
+    window.removeEventListener('lostpointercapture', onLost);
+    window.removeEventListener('blur', onInterrupt);
+    document.removeEventListener('visibilitychange', onVisibility);
+    if (drag && drag.captureHost) {
+      try { drag.captureHost.releasePointerCapture(drag.pointerId); } catch (e) { /* 已經自動釋放 */ }
+      drag.captureHost = null;
+    }
+  }
+
+  function onLost(ev) {
+    if (drag && ev.pointerId === drag.pointerId) abort();
+  }
+
+  function onInterrupt() { abort(); }
+
+  function onVisibility() {
+    if (document.hidden) abort();
+  }
+
+  /** 中止拖曳並把方塊收回方塊盤，畫面狀態一併同步回去 */
+  function abort() {
+    if (!drag) return;
+    detach();
+    var piece = drag.piece;
+    var moved = drag.moved;
+    var fromBoard = drag.fromBoard;
+    if (drag.layer) drag.layer.remove();
+    if (drag.sourceEl) drag.sourceEl.classList.remove('is-dragging');
+    Render.clearGhost(ctx.refs);
+    drag = null;
+    if (moved) ctx.afterReturn(piece, fromBoard);
   }
 
   /** 拖曳中即時旋轉／翻轉：轉完重新置中在游標下 */
@@ -194,14 +250,7 @@
 
   function isDragging() { return !!(drag && drag.moved); }
 
-  function cancelAll() {
-    if (!drag) return;
-    detach();
-    if (drag.layer) drag.layer.remove();
-    if (drag.sourceEl) drag.sourceEl.classList.remove('is-dragging');
-    Render.clearGhost(ctx.refs);
-    drag = null;
-  }
+  function cancelAll() { abort(); }
 
   global.BD = global.BD || {};
   global.BD.Input = {
