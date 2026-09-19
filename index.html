@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>方塊填色</title>
+<meta name="description" content="把繽紛方塊拼進畫框的填充拼圖遊戲，五個世界三十道關卡，從簡單幾何一路到不規則大塊。">
+<meta name="theme-color" content="#16a085">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fff6e5'/%3E%3Crect x='4' y='4' width='11' height='11' rx='3' fill='%23ff6b8b'/%3E%3Crect x='17' y='4' width='11' height='11' rx='3' fill='%2342c9a3'/%3E%3Crect x='4' y='17' width='11' height='11' rx='3' fill='%23ffc247'/%3E%3Crect x='17' y='17' width='11' height='11' rx='3' fill='%235aa9f5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-theme="mint">
+
+<div class="backdrop" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+<div class="fx" id="fx" aria-hidden="true"></div>
+
+<!-- ───────── 標題頁 ───────── -->
+<section class="screen screen--title is-active" id="screen-title">
+  <div class="logo" aria-hidden="true">
+    <i style="--h:  12"></i><i style="--h:150"></i><i style="--h:205"></i>
+    <i style="--h:275"></i><i style="--h: 42"></i><i style="--h:330"></i>
+  </div>
+  <h1 class="title">方塊填色</h1>
+  <p class="subtitle">把繽紛方塊拼進畫框<br>填得越滿，星星越多</p>
+  <div class="title-actions">
+    <button class="btn btn--primary" id="btn-start">開始遊戲</button>
+    <button class="btn" id="btn-howto">怎麼玩</button>
+  </div>
+  <p class="title-progress" id="title-progress"></p>
+</section>
+
+<!-- ───────── 關卡選單 ───────── -->
+<section class="screen screen--levels" id="screen-levels">
+  <header class="topbar">
+    <button class="icon-btn" id="btn-levels-back" aria-label="回標題頁">←</button>
+    <h2 class="topbar__title">選擇關卡</h2>
+    <span class="star-total" id="star-total">★ 0</span>
+  </header>
+  <div class="worlds" id="worlds"></div>
+  <footer class="levels-footer">
+    <button class="btn btn--ghost" id="btn-reset-progress">清除進度</button>
+  </footer>
+</section>
+
+<!-- ───────── 遊戲頁 ───────── -->
+<section class="screen screen--play" id="screen-play">
+  <header class="topbar">
+    <button class="icon-btn" id="btn-play-back" aria-label="回關卡選單">←</button>
+    <div class="level-label">
+      <strong id="play-name">關卡</strong>
+      <span id="play-id"></span>
+    </div>
+    <button class="icon-btn" id="btn-sound" aria-label="音效開關">🔊</button>
+  </header>
+
+  <div class="stats">
+    <div class="meter">
+      <div class="meter__fill" id="meter-fill"></div>
+      <div class="meter__marks" id="meter-marks"></div>
+    </div>
+    <div class="stats__row">
+      <span class="stats__fill" id="stat-fill">0%</span>
+      <span class="stats__goal" id="stat-goal"></span>
+      <span class="stats__left" id="stat-left"></span>
+    </div>
+  </div>
+
+  <div class="playfield">
+    <div class="board-wrap" id="board-wrap">
+      <div class="board" id="board">
+        <div class="board__slots" id="board-slots"></div>
+        <div class="board__pieces" id="board-pieces"></div>
+        <div class="board__ghost" id="board-ghost"></div>
+      </div>
+    </div>
+    <div class="tray" id="tray"></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool" id="btn-rotate"><b>↻</b><span>旋轉</span></button>
+    <button class="tool" id="btn-flip"><b>⇄</b><span>翻轉</span></button>
+    <button class="tool" id="btn-undo"><b>↺</b><span>復原</span></button>
+    <button class="tool" id="btn-hint"><b>💡</b><span>提示</span></button>
+    <button class="tool" id="btn-restart"><b>⟳</b><span>重來</span></button>
+    <button class="tool tool--go" id="btn-finish"><b>✓</b><span>結算</span></button>
+  </div>
+
+  <p class="hint-line" id="hint-line"></p>
+</section>
+
+<!-- ───────── 彈窗 ───────── -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal__card" id="modal-card"></div>
+</div>
+
+<script src="js/shapes.js"></script>
+<script src="js/generator.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/board.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
