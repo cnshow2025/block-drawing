@@ -215,6 +215,7 @@
       var uid = Number(node.dataset.uid);
       var piece = state.pieces.filter(function (p) { return p.uid === uid; })[0];
       if (!piece) return;
+      node.classList.toggle('is-selected', uid === selectedUid);
       node.addEventListener('pointerdown', function (ev) {
         Input.begin(ev, piece, node, true);
       });
@@ -250,11 +251,7 @@
     getState: function () { return state; },
     getCellPx: function () { return cell; },
 
-    onSelect: function (piece) {
-      selectedUid = (selectedUid === piece.uid) ? null : piece.uid;
-      renderTray();
-      setHint(selectedUid ? '已選取方塊，按「旋轉」或「翻轉」調整方向。' : '');
-    },
+    onSelect: function (piece) { tapPiece(piece); },
 
     afterPickup: function (piece) {
       state.history.push({ type: 'pickup', uid: piece.uid, r: piece.r, c: piece.c, rot: piece.rot, flip: piece.flip });
@@ -364,7 +361,8 @@
       '<ul>',
       '<li><b>拖曳</b>方塊到畫框裡，會自動吸附到格線上。</li>',
       '<li>放下前會出現<b>落點預覽</b>：綠色代表可以放，紅色代表卡到東西。</li>',
-      '<li>點一下方塊可以<b>選取</b>，再按「旋轉」「翻轉」調整方向；拖曳途中也能直接按。</li>',
+      '<li>點一下方塊<b>選取</b>，<b>再點一下就轉 90°</b>，連續點就一直轉；也可以按「旋轉」「翻轉」按鈕。</li>',
+      '<li>已經放進畫框的方塊同樣可以點著轉——除非旁邊空間不夠，那就得先把它拖開。</li>',
       '<li>放錯了可以把方塊<b>從畫框裡拖回來</b>，或按「復原」。</li>',
       '<li><b>精準拼合</b>關卡必須完全填滿；<b>填滿計分</b>關卡則是填越滿星星越多。</li>',
       '<li>電腦鍵盤：<b>R</b> 旋轉、<b>F</b> 翻轉、<b>Ctrl+Z</b> 復原。</li>',
@@ -395,15 +393,103 @@
   }
 
   // ── 工具列動作 ─────────────────────────────────────────────
-  function transformSelected(kind) {
-    if (Input.transformDragging(kind)) return;
-    if (!selectedUid) { setHint('先點一下方塊盤裡的方塊，再按旋轉或翻轉。'); return; }
-    var piece = state.pieces.filter(function (p) { return p.uid === selectedUid; })[0];
-    if (!piece || piece.placed) return;
+  function pieceByUid(uid) {
+    for (var i = 0; i < state.pieces.length; i++) {
+      if (state.pieces[i].uid === uid) return state.pieces[i];
+    }
+    return null;
+  }
+
+  function paintSelection() {
+    renderTray();
+    Array.prototype.forEach.call(refs.pieces.children, function (node) {
+      node.classList.toggle('is-selected', Number(node.dataset.uid) === selectedUid);
+    });
+  }
+
+  /** 點一下方塊：第一下選取，之後每點一下就轉 90° */
+  function tapPiece(piece) {
+    if (selectedUid === piece.uid) { transformPiece(piece, 'rotate'); return; }
+    selectedUid = piece.uid;
+    paintSelection();
+    setHint(piece.placed
+      ? '已選取畫框上的方塊，再點一下就原地旋轉 90°。'
+      : '已選取方塊，再點一下就旋轉 90°。');
+  }
+
+  /** 旋轉／翻轉一塊方塊。已放上畫框的就原地轉，轉不動時維持原樣並說明原因。 */
+  function transformPiece(piece, kind) {
+    var before = Shapes.cellsKey(Board.cellsOf(piece));
+    var ok = piece.placed ? transformPlaced(piece, kind) : transformInTray(piece, kind);
+    if (ok && Shapes.cellsKey(Board.cellsOf(piece)) === before) {
+      setHint('這塊方塊每個方向都長得一樣，轉了看不出差別。');
+    }
+    return ok;
+  }
+
+  function transformInTray(piece, kind) {
     if (kind === 'flip') piece.flip = piece.flip ? 0 : 1;
     else piece.rot = (piece.rot + 1) & 3;
     Audio.play('pick');
     fitTray();
+    paintSelection();
+    setHint('');
+    return true;
+  }
+
+  /**
+   * 原地旋轉／翻轉畫框上的方塊。
+   * 以方塊自己的中心為軸轉；轉完若壓到別的方塊，就往外找兩格內的空位挪一下，
+   * 真的塞不下就轉不動，維持原狀並提示玩家先把它拖走。
+   */
+  function transformPlaced(piece, kind) {
+    var from = { r: piece.r, c: piece.c, rot: piece.rot, flip: piece.flip };
+    var d = Shapes.dims(Board.cellsOf(piece));
+    var centerR = piece.r + d.rows / 2;
+    var centerC = piece.c + d.cols / 2;
+
+    Board.unplace(state, piece);
+    if (kind === 'flip') piece.flip = piece.flip ? 0 : 1;
+    else piece.rot = (piece.rot + 1) & 3;
+
+    var nd = Shapes.dims(Board.cellsOf(piece));
+    var baseR = Math.round(centerR - nd.rows / 2);
+    var baseC = Math.round(centerC - nd.cols / 2);
+
+    var spot = null;
+    for (var radius = 0; radius <= 2 && !spot; radius++) {
+      for (var dr = -radius; dr <= radius && !spot; dr++) {
+        for (var dc = -radius; dc <= radius && !spot; dc++) {
+          if (Math.max(Math.abs(dr), Math.abs(dc)) !== radius) continue;
+          if (Board.canPlace(state, piece, baseR + dr, baseC + dc)) {
+            spot = { r: baseR + dr, c: baseC + dc };
+          }
+        }
+      }
+    }
+
+    if (!spot) {
+      piece.rot = from.rot;
+      piece.flip = from.flip;
+      Board.place(state, piece, from.r, from.c);
+      Audio.play('invalid');
+      setHint('旁邊沒空間，這塊在這裡轉不動——先把它拖到別的地方吧。');
+      return false;
+    }
+
+    Board.place(state, piece, spot.r, spot.c);
+    state.history.push({ type: 'move', uid: piece.uid, r: from.r, c: from.c, rot: from.rot, flip: from.flip });
+    Audio.play('pick');
+    refreshAll();
+    setHint('');
+    return true;
+  }
+
+  function transformSelected(kind) {
+    if (Input.transformDragging(kind)) return;
+    if (!selectedUid) { setHint('先點一下方塊選取，再按旋轉或翻轉。'); return; }
+    var piece = pieceByUid(selectedUid);
+    if (piece) transformPiece(piece, kind);
   }
 
   function undo() {
