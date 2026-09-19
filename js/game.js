@@ -147,8 +147,9 @@
       desc.textContent = world.desc;
 
       var grid = Render.el('div', 'level-grid');
+      var next = nextUnclearedLevel();
       Levels.inWorld(world.id).forEach(function (lv) {
-        grid.appendChild(levelCard(lv));
+        grid.appendChild(levelCard(lv, next && next.id === lv.id));
       });
 
       box.appendChild(head);
@@ -165,14 +166,20 @@
     })[theme] || '#10a37f';
   }
 
-  function levelCard(lv) {
+  // 所有關卡隨時都能直接點進去玩；「接著打」只是提示進度到哪，不是限制
+  function levelCard(lv, isNext) {
     var rec = Storage.recordOf(lv.id);
-    var unlocked = Storage.isUnlocked(lv.id, Levels.LIST);
     var card = Render.el('button', 'level-card');
-    card.disabled = !unlocked;
+    if (rec.cleared) card.classList.add('is-cleared');
+    if (isNext) card.classList.add('is-next');
 
     var id = Render.el('span', 'level-card__id');
-    id.textContent = unlocked ? lv.id : '🔒 ' + lv.id;
+    id.textContent = lv.id;
+    if (isNext) {
+      var badge = Render.el('span', 'level-card__badge');
+      badge.textContent = '接著打';
+      id.appendChild(badge);
+    }
     var name = Render.el('b', 'level-card__name');
     name.textContent = lv.name;
 
@@ -442,15 +449,14 @@
         '</tr></thead><tbody>');
       Levels.inWorld(world.id).forEach(function (lv) {
         var rec = Storage.recordOf(lv.id);
-        var unlocked = Storage.isUnlocked(lv.id, Levels.LIST);
         var state = rec.stars === 3 ? '三星達成'
           : rec.cleared ? '已通關'
-          : unlocked ? '可挑戰' : '未解鎖';
+          : rec.best > 0 ? '挑戰過' : '還沒玩';
         out.push('<tr class="' + (rec.cleared ? 'is-cleared' : '') + '">' +
           '<td><b>' + lv.id + '</b> ' + lv.name + '</td>' +
           '<td class="stars">' + Render.starsHtml(rec.stars) + '</td>' +
           '<td class="num">' + (rec.best > 0 ? rec.best + '%' : '—') + '</td>' +
-          '<td class="state state--' + (rec.cleared ? 'done' : unlocked ? 'open' : 'lock') + '">' + state + '</td>' +
+          '<td class="state state--' + (rec.cleared ? 'done' : rec.best > 0 ? 'open' : 'new') + '">' + state + '</td>' +
           '</tr>');
       });
       out.push('</tbody></table></div>');

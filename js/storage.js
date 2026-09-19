@@ -1,5 +1,5 @@
 /* storage.js — 進度存檔（localStorage）
- * 記錄每關的星數與最佳填滿率，並據此決定關卡解鎖。
+ * 記錄每關的星數與最佳填滿率，以及玩家名字與每日挑戰的連續天數。
  */
 (function (global) {
   'use strict';
@@ -41,13 +41,6 @@
     progress[levelId] = next;
     write(KEY, progress);
     return next;
-  }
-
-  function isUnlocked(levelId, list) {
-    var idx = -1;
-    for (var i = 0; i < list.length; i++) if (list[i].id === levelId) { idx = i; break; }
-    if (idx <= 0) return true;
-    return recordOf(list[idx - 1].id).cleared;
   }
 
   // 每日挑戰的星星另外算，不灌進主線的收集進度
@@ -105,7 +98,6 @@
   global.BD.Storage = {
     recordOf: recordOf,
     save: save,
-    isUnlocked: isUnlocked,
     totalStars: totalStars,
     dailyStreak: dailyStreak,
     dailyRecord: dailyRecord,

@@ -295,7 +295,7 @@ body {
 .stats-table .stars i.off { color: rgba(23, 49, 60, .16); }
 .stats-table .state { font-size: 12px; white-space: nowrap; }
 .state--done { color: var(--accent); font-weight: 700; }
-.state--lock { opacity: .55; }
+.state--new { opacity: .55; }
 
 .name-input {
   width: 100%;
@@ -428,9 +428,28 @@ body {
   box-shadow: 0 4px 12px rgba(20, 50, 60, .12);
   transition: transform .15s ease, box-shadow .15s ease;
 }
-.level-card:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(20, 50, 60, .18); }
-.level-card:disabled { opacity: .5; cursor: not-allowed; background: rgba(255, 255, 255, .55); }
-.level-card__id { font-size: 11px; letter-spacing: .16em; color: var(--ink-soft); }
+.level-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(20, 50, 60, .18); }
+/* 還沒玩過的關卡淡一點，但一樣點得進去 */
+.level-card:not(.is-cleared):not(.is-next) { background: rgba(255, 255, 255, .72); }
+/* 進度接續的那一關加一圈主題色，讓「打到哪了」一眼看得出來 */
+.level-card.is-next { box-shadow: 0 0 0 2.5px var(--w-color, var(--accent)), 0 6px 16px rgba(20, 50, 60, .18); }
+.level-card__id {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: .16em;
+  color: var(--ink-soft);
+}
+.level-card__badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #fff;
+  background: var(--w-color, var(--accent));
+  border-radius: 999px;
+  padding: 2px 7px;
+}
 .level-card__name { display: block; font-size: 15px; font-weight: 700; margin: 2px 0 6px; }
 .level-card__stars { font-size: 14px; letter-spacing: .12em; color: #f2b01e; }
 .level-card__stars .off { color: rgba(23, 49, 60, .18); }
