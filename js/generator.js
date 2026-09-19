@@ -237,13 +237,14 @@
    * 再逐塊挑出貼合度最高的位置——貼合度＝該塊有多少邊緊靠牆面或既有方塊。
    * 貼牆放置能大幅減少碎洞，實測比純隨機貪心高出十幾個百分點。
    */
-  function bestFitFill(mask, shapeIds, seed, rounds, wantPlan) {
+  function bestFitFill(mask, shapeIds, seed, rounds, wantPlan, collect) {
     rounds = rounds || 60;
     var rows = mask.rows, cols = mask.cols, total = rows * cols;
     var playable = 0;
     for (var i0 = 0; i0 < total; i0++) if (mask.grid[i0] === 1) playable++;
 
     var best = 0, bestPlan = null;
+    var samples = collect ? [] : null;
 
     for (var round = 0; round < rounds; round++) {
       var rng = makeRng(seed + round * 104729);
@@ -299,11 +300,27 @@
       }
 
       var rate = playable ? filled / playable : 0;
+      if (samples) samples.push(rate);
       if (rate > best) { best = rate; bestPlan = plan; }
-      if (best >= 1) break;
+      if (best >= 1 && !collect) break;
     }
 
+    if (collect) return { rate: best, samples: samples };
     return wantPlan ? { rate: best, plan: bestPlan } : best;
+  }
+
+  /**
+   * 估出一組方塊在這個盤面「填得到幾成」。
+   *
+   * 只取最高分會被極少數的幸運路徑帶偏——兩百次重啟裡碰到一次的填法，
+   * 對真人來說幾乎等於不存在。所以另外回傳第 90 百分位，
+   * 那是「打得不錯的一局」的水準，跨種子也穩定得多，拿來訂星等門檻才合理。
+   */
+  function fillCeiling(mask, shapeIds, seed, rounds) {
+    var res = bestFitFill(mask, shapeIds, seed, rounds || 200, false, true);
+    var sorted = res.samples.slice().sort(function (a, b) { return a - b; });
+    var idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9));
+    return { max: res.rate, p90: sorted.length ? sorted[idx] : 0 };
   }
 
   // 鄰格是否「靠得住」：盤外、障礙或已被佔用都算，空白不算
@@ -320,6 +337,7 @@
     partition: partition,
     partitionWithRetry: partitionWithRetry,
     buildPalette: buildPalette,
-    bestFitFill: bestFitFill
+    bestFitFill: bestFitFill,
+    fillCeiling: fillCeiling
   };
 })(typeof window !== 'undefined' ? window : globalThis);

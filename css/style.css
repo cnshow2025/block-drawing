@@ -207,6 +207,61 @@ body {
 /* ── 關卡選單 ─────────────────────────────────────────────── */
 .worlds { flex: 1; overflow-y: auto; padding: 4px 2px 8px; -webkit-overflow-scrolling: touch; }
 
+/* ── 每日挑戰卡片 ─────────────────────────────────────────── */
+.daily-card {
+  appearance: none;
+  border: none;
+  font: inherit;
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 15px 18px;
+  margin-bottom: 16px;
+  color: #fff;
+  background: linear-gradient(120deg, #ff7fa8, #ffb547 45%, #5aa9f5);
+  background-size: 220% 100%;
+  box-shadow: var(--shadow);
+  animation: daily-shine 9s ease-in-out infinite alternate;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.daily-card:hover  { transform: translateY(-3px); box-shadow: 0 14px 26px rgba(20, 50, 60, .24); }
+.daily-card:active { transform: translateY(1px) scale(.995); }
+@keyframes daily-shine { to { background-position: 100% 0; } }
+
+.daily-card__tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .45);
+}
+.daily-card__date {
+  display: block;
+  font-size: 21px;
+  letter-spacing: .08em;
+  margin: 7px 0 3px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+}
+.daily-card__state { font-size: 13.5px; opacity: .95; }
+.daily-card__state em { font-style: normal; font-weight: 700; margin-left: 4px; }
+.daily-card i      { font-style: normal; color: #fff6c7; }
+.daily-card i.off  { color: rgba(255, 255, 255, .35); }
+.daily-card__streak {
+  display: inline-block;
+  margin-top: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .26);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .4);
+}
+
 .world {
   background: var(--card);
   border-radius: var(--radius);

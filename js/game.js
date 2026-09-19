@@ -44,20 +44,52 @@
     return Levels.WORLDS.filter(function (w) { return w.id === lv.world; })[0];
   }
 
+  function themeOf(lv) {
+    if (lv.theme) return lv.theme;
+    var w = worldOf(lv);
+    return w ? w.theme : 'mint';
+  }
+
+  // ── 每日挑戰 ───────────────────────────────────────────────
+  function buildDailyCard() {
+    var today = Levels.dateKey();
+    var rec = Storage.dailyRecord(today);
+    var streak = Storage.dailyStreak();
+    var card = $('daily-card');
+
+    card.innerHTML = [
+      '<span class="daily-card__tag">每日挑戰</span>',
+      '<b class="daily-card__date">' + today + '</b>',
+      '<span class="daily-card__state">',
+      rec.cleared
+        ? '今天已完成 ' + Render.starsHtml(rec.stars) + ' <em>' + rec.best + '%</em>'
+        : '今天還沒挑戰，點我開始',
+      '</span>',
+      streak > 0 ? '<span class="daily-card__streak">🔥 連續 ' + streak + ' 天</span>' : ''
+    ].join('');
+  }
+
+  function startDaily() {
+    startLevel(Levels.daily());
+  }
+
   // ── 標題頁 ─────────────────────────────────────────────────
   function refreshTitle() {
     var total = Storage.totalStars();
     var max = Levels.LIST.length * 3;
-    $('title-progress').textContent = total > 0
+    var streak = Storage.dailyStreak();
+    $('title-progress').textContent = (total > 0
       ? '已收集 ' + total + ' / ' + max + ' 顆星星'
-      : '五個世界，三十道關卡';
+      : '五個世界，三十道關卡')
+      + (streak > 0 ? '　🔥 每日挑戰連續 ' + streak + ' 天' : '');
   }
 
   // ── 關卡選單 ───────────────────────────────────────────────
   function buildLevelSelect() {
-    var host = $('worlds');
+    var host = $('world-list');
     host.textContent = '';
     $('star-total').textContent = '★ ' + Storage.totalStars();
+    buildDailyCard();
 
     Levels.WORLDS.forEach(function (world) {
       var box = Render.el('div', 'world');
@@ -133,10 +165,10 @@
       return;
     }
     selectedUid = null;
-    lastTheme = worldOf(lv).theme;
+    lastTheme = themeOf(lv);
 
     $('play-name').textContent = lv.name;
-    $('play-id').textContent = '世界 ' + lv.world + '．關卡 ' + lv.id;
+    $('play-id').textContent = lv.isDaily ? lv.dateKey : '世界 ' + lv.world + '．關卡 ' + lv.id;
     show('screen-play', lastTheme);
 
     buildGoal();
@@ -335,17 +367,26 @@
       lines.push('<p>星等門檻：' + t[0] + '% / ' + t[1] + '% / ' + t[2] + '%'
         + (state.hintsUsed ? '<br>使用提示 ' + state.hintsUsed + ' 次（星等會扣減）' : '') + '</p>');
     }
-    lines.push('<p>本關最佳紀錄：' + saved.best + '%　★ ' + saved.stars + '</p>');
+    lines.push('<p>' + (level.isDaily ? '今日最佳紀錄' : '本關最佳紀錄') + '：' + saved.best + '%　★ ' + saved.stars + '</p>');
+    if (level.isDaily) {
+      var streak = Storage.dailyStreak();
+      lines.push('<p>' + (streak > 0
+        ? '🔥 已經連續挑戰 ' + streak + ' 天，明天會換一題新的。'
+        : '明天會換一題新的，記得回來。') + '</p>');
+    }
 
     lines.push('<div class="modal__actions">');
     lines.push('<button class="btn" data-act="retry">再玩一次</button>');
     lines.push('<button class="btn" data-act="levels">關卡選單</button>');
-    if (result.cleared && next) lines.push('<button class="btn btn--primary" data-act="next">下一關</button>');
+    if (result.cleared && next && !level.isDaily) {
+      lines.push('<button class="btn btn--primary" data-act="next">下一關</button>');
+    }
     lines.push('</div>');
 
     openModal(lines.join(''), function (card) {
       card.querySelector('[data-act="retry"]').addEventListener('click', function () {
-        closeModal(); startLevel(level);
+        closeModal();
+        startLevel(level.isDaily ? Levels.daily() : level);
       });
       card.querySelector('[data-act="levels"]').addEventListener('click', function () {
         closeModal(); buildLevelSelect(); show('screen-levels', lastTheme);
@@ -365,6 +406,7 @@
       '<li>已經放進畫框的方塊同樣可以點著轉——除非旁邊空間不夠，那就得先把它拖開。</li>',
       '<li>放錯了可以把方塊<b>從畫框裡拖回來</b>，或按「復原」。</li>',
       '<li><b>精準拼合</b>關卡必須完全填滿；<b>填滿計分</b>關卡則是填越滿星星越多。</li>',
+      '<li><b>每日挑戰</b>每天換一題，題目由當天日期決定，全世界同一題；連續挑戰會累積天數。</li>',
       '<li>電腦鍵盤：<b>R</b> 旋轉、<b>F</b> 翻轉、<b>Ctrl+Z</b> 復原。</li>',
       '</ul>',
       '<div class="modal__actions"><button class="btn btn--primary" data-act="ok">知道了</button></div>'
@@ -534,7 +576,7 @@
 
   function restart() {
     if (!level) return;
-    startLevel(level);
+    startLevel(level.isDaily ? Levels.daily() : level);
   }
 
   // ── 事件綁定 ───────────────────────────────────────────────
@@ -543,6 +585,8 @@
       buildLevelSelect();
       show('screen-levels', lastTheme);
     });
+    $('btn-daily').addEventListener('click', startDaily);
+    $('daily-card').addEventListener('click', startDaily);
     $('btn-howto').addEventListener('click', showHowTo);
     $('btn-levels-back').addEventListener('click', function () {
       refreshTitle();

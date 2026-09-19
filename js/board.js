@@ -29,6 +29,21 @@
       ids = rng.shuffle(built.pieces.map(function (p) { return p.shapeId; }));
     }
 
+    // 每日挑戰沒有人工校準過的門檻，就地跑一次最佳貼合估出今天實際能填到幾 %，
+    // 再照比例訂三道星等門檻——難的日子門檻自動變低，不會變成無解的苦差事。
+    if (level.autoStars && !level.stars) {
+      // 用第 90 百分位而不是最高分：最高分可能是兩百次重啟裡的一次僥倖，
+      // 訂成門檻對真人太苛。第 90 百分位代表「打得不錯的一局」，跨種子也穩定。
+      var ceiling = Gen.fillCeiling(mask, ids, built.seed, 200).p90 * 100;
+      // 一律無條件捨去：四捨五入會把門檻推到估出來的可達值之上，
+      // 那 0.4 個百分點的差距就足以讓三星變成拿不到。
+      level.stars = [
+        Math.max(40, Math.floor(ceiling * 0.76)),
+        Math.max(50, Math.floor(ceiling * 0.88)),
+        Math.min(95, Math.max(60, Math.floor(ceiling)))
+      ];
+    }
+
     var total = mask.rows * mask.cols;
     var cells = new Int32Array(total);
     for (var i = 0; i < total; i++) cells[i] = mask.grid[i] === 1 ? EMPTY : VOID;

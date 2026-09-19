@@ -24,6 +24,8 @@ jobs:
           node-version: '22'
       - name: 驗證關卡都能生成
         run: node tools/validate-levels.js
+      - name: 驗證未來一年的每日挑戰
+        run: node tools/validate-daily.js 365
 
   deploy:
     needs: validate

@@ -24,6 +24,7 @@
   <p class="subtitle">把繽紛方塊拼進畫框<br>填得越滿，星星越多</p>
   <div class="title-actions">
     <button class="btn btn--primary" id="btn-start">開始遊戲</button>
+    <button class="btn" id="btn-daily">每日挑戰</button>
     <button class="btn" id="btn-howto">怎麼玩</button>
   </div>
   <p class="title-progress" id="title-progress"></p>
@@ -36,7 +37,10 @@
     <h2 class="topbar__title">選擇關卡</h2>
     <span class="star-total" id="star-total">★ 0</span>
   </header>
-  <div class="worlds" id="worlds"></div>
+  <div class="worlds" id="worlds">
+    <button class="daily-card" id="daily-card"></button>
+    <div id="world-list"></div>
+  </div>
   <footer class="levels-footer">
     <button class="btn btn--ghost" id="btn-reset-progress">清除進度</button>
   </footer>

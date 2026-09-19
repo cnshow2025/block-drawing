@@ -50,11 +50,31 @@
     return recordOf(list[idx - 1].id).cleared;
   }
 
+  // 每日挑戰的星星另外算，不灌進主線的收集進度
+  function isDailyId(id) { return id.indexOf('daily-') === 0; }
+
   function totalStars() {
     var n = 0;
-    Object.keys(progress).forEach(function (k) { n += progress[k].stars || 0; });
+    Object.keys(progress).forEach(function (k) {
+      if (!isDailyId(k)) n += progress[k].stars || 0;
+    });
     return n;
   }
+
+  /** 連續完成每日挑戰的天數；今天還沒完成就從昨天開始往回數 */
+  function dailyStreak(today) {
+    var keyOf = global.BD.Levels.dateKey;
+    var d = today ? new Date(today) : new Date();
+    if (!recordOf('daily-' + keyOf(d)).cleared) d.setDate(d.getDate() - 1);
+    var n = 0;
+    while (recordOf('daily-' + keyOf(d)).cleared) {
+      n++;
+      d.setDate(d.getDate() - 1);
+    }
+    return n;
+  }
+
+  function dailyRecord(dateKey) { return recordOf('daily-' + dateKey); }
 
   function clearAll() {
     progress = {};
@@ -70,6 +90,8 @@
     save: save,
     isUnlocked: isUnlocked,
     totalStars: totalStars,
+    dailyStreak: dailyStreak,
+    dailyRecord: dailyRecord,
     clearAll: clearAll,
     getPref: getPref,
     setPref: setPref
