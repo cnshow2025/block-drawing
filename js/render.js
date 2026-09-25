@@ -48,7 +48,9 @@
   function paintSlice(box, skin, r, c, cellPx) {
     box.classList.add('cellbox--pic');
     box.style.backgroundImage = 'url(' + skin.url + ')';
-    box.style.backgroundSize = skin.boardW + 'px ' + skin.boardH + 'px';
+    // 縮放與定位必須用同一個格子大小。方塊盤的格子比棋盤小，
+    // 若沿用棋盤的像素尺寸，每一塊都會顯示到圖片左上角的同一小塊。
+    box.style.backgroundSize = (skin.cols * cellPx) + 'px ' + (skin.rows * cellPx) + 'px';
     box.style.backgroundRepeat = 'no-repeat';
     box.style.backgroundPosition =
       (-(c * cellPx + GAP / 2)) + 'px ' + (-(r * cellPx + GAP / 2)) + 'px';

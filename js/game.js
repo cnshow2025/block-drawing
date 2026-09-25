@@ -289,8 +289,8 @@
     if (!state || !state.picture || !state.picture.on || !piece.home) return null;
     return {
       url: Pictures.url(state.picture.index, state.cols, state.rows),
-      boardW: state.cols * cell,
-      boardH: state.rows * cell,
+      cols: state.cols,
+      rows: state.rows,
       home: piece.home,
       rot: piece.rot,
       flip: piece.flip
