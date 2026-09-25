@@ -9,12 +9,12 @@
   var makeRng = global.BD.Gen.makeRng;
 
   var PICTURES = [
-    { id: 'sunset', name: '黃昏', draw: drawSunset },
-    { id: 'waves', name: '海浪', draw: drawWaves },
-    { id: 'night', name: '星空', draw: drawNight },
-    { id: 'garden', name: '花園', draw: drawGarden },
-    { id: 'rainbow', name: '彩虹', draw: drawRainbow },
-    { id: 'mosaic', name: '幾何', draw: drawMosaic }
+    { id: 'tiles', name: '花磚', draw: drawTiles },
+    { id: 'leaves', name: '樹葉', draw: drawLeaves },
+    { id: 'scales', name: '魚鱗', draw: drawScales },
+    { id: 'fabric', name: '花布', draw: drawFabric },
+    { id: 'mosaic', name: '拼貼', draw: drawMosaic },
+    { id: 'chart', name: '星圖', draw: drawChart }
   ];
 
   var cache = {};
@@ -23,20 +23,273 @@
    * 取得某張圖的 data URL。
    * 依 cols × rows 的比例決定畫布形狀，同一組參數只會畫一次。
    */
-  function url(index, cols, rows) {
-    var pic = PICTURES[((index % PICTURES.length) + PICTURES.length) % PICTURES.length];
-    var w = 640;
-    var h = Math.max(120, Math.round(640 * rows / cols));
+  function at(index) {
+    return PICTURES[((index % PICTURES.length) + PICTURES.length) % PICTURES.length];
+  }
+
+  function render(pic, index, w, h, quality) {
     var key = pic.id + '@' + w + 'x' + h;
     if (cache[key]) return cache[key];
-
     var canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
     var ctx = canvas.getContext('2d');
-    pic.draw(ctx, w, h, makeRng(0x9e3779b9 ^ index));
-    cache[key] = canvas.toDataURL('image/jpeg', 0.88);
+    pic.draw(ctx, w, h, makeRng(0x9e3779b9 ^ (index * 2654435761)));
+    cache[key] = canvas.toDataURL('image/jpeg', quality);
     return cache[key];
+  }
+
+  function url(index, cols, rows) {
+    var w = 720;
+    return render(at(index), index, w, Math.max(160, Math.round(w * rows / cols)), 0.82);
+  }
+
+  /** 選圖面板用的小縮圖，不必跟棋盤同尺寸 */
+  function thumb(index) {
+    return render(at(index), index, 240, 180, 0.7);
+  }
+
+  // 圖案的細節要夠密，一小塊方塊切出來才看得出自己是哪一塊。
+  // 這裡統一把「花樣」控制在一格左右的大小：畫布寬除以 9 差不多就是一格。
+  function unit(w) { return w / 9; }
+
+  function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+
+  // ── 花磚：每塊磁磚自己一個配色與花樣 ──
+  function drawTiles(ctx, w, h, rng) {
+    var u = unit(w) * 0.62;
+    var cols = Math.ceil(w / u), rows = Math.ceil(h / u);
+    var grounds = ['#1b6f8c', '#2b8fa8', '#d9532f', '#e8913a', '#f0d7a8', '#186056', '#8c3f6b', '#c9d6c1'];
+    var inks = ['#fdf4dd', '#0f3b46', '#f6c65b', '#2a1a3d'];
+
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var x = c * u, y = r * u;
+        var g = pick(rng, grounds), ink = pick(rng, inks);
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, u, u);
+
+        ctx.save();
+        ctx.translate(x + u / 2, y + u / 2);
+        ctx.rotate(Math.floor(rng() * 4) * Math.PI / 2);
+        ctx.fillStyle = ink;
+        var kind = Math.floor(rng() * 4);
+        if (kind === 0) {
+          for (var p = 0; p < 8; p++) {
+            ctx.beginPath();
+            var a = (Math.PI * 2 * p) / 8;
+            ctx.ellipse(Math.cos(a) * u * 0.22, Math.sin(a) * u * 0.22, u * 0.11, u * 0.05, a, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (kind === 1) {
+          ctx.beginPath();
+          for (var q = 0; q < 4; q++) {
+            var b = (Math.PI * 2 * q) / 4;
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(b) * u * 0.42, Math.sin(b) * u * 0.42);
+            ctx.lineTo(Math.cos(b + 0.5) * u * 0.3, Math.sin(b + 0.5) * u * 0.3);
+          }
+          ctx.fill();
+        } else if (kind === 2) {
+          ctx.beginPath();
+          ctx.arc(0, 0, u * 0.26, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(0, 0, u * 0.13, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.rotate(Math.PI / 4);
+          ctx.fillRect(-u * 0.24, -u * 0.24, u * 0.48, u * 0.48);
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = 'rgba(20,30,40,.35)';
+        ctx.lineWidth = Math.max(1, u * 0.035);
+        ctx.strokeRect(x + 0.5, y + 0.5, u, u);
+      }
+    }
+  }
+
+  // ── 樹葉：大量重疊的葉片，每片角度與顏色都不同 ──
+  function drawLeaves(ctx, w, h, rng) {
+    gradient(ctx, w, h, [[0, '#14432c'], [1, '#0a2b1d']]);
+    var u = unit(w);
+    var greens = ['#2f7d4f', '#46a35f', '#6cc072', '#a8d46a', '#d9d16a', '#e0a84c', '#c2722f', '#1f6340'];
+    var count = Math.round((w * h) / (u * u) * 9);
+    for (var i = 0; i < count; i++) {
+      var x = rng() * w, y = rng() * h;
+      var len = u * (0.26 + rng() * 0.4);
+      var wid = len * (0.32 + rng() * 0.22);
+      var ang = rng() * Math.PI * 2;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ang);
+      ctx.fillStyle = pick(rng, greens);
+      ctx.beginPath();
+      ctx.moveTo(-len, 0);
+      ctx.quadraticCurveTo(0, -wid, len, 0);
+      ctx.quadraticCurveTo(0, wid, -len, 0);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(12,40,25,.45)';
+      ctx.lineWidth = Math.max(0.8, len * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.85, 0);
+      ctx.lineTo(len * 0.85, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── 魚鱗：一排排交錯的鱗片，色相隨位置流動並加上抖動 ──
+  function drawScales(ctx, w, h, rng) {
+    gradient(ctx, w, h, [[0, '#0d3b5c'], [1, '#08283f']]);
+    var u = unit(w) * 0.5;
+    var rows = Math.ceil(h / (u * 0.62)) + 2;
+    for (var r = 0; r < rows; r++) {
+      var y = r * u * 0.62;
+      var offset = (r % 2) * u * 0.5;
+      for (var x = -u; x < w + u; x += u) {
+        var cx = x + offset, cy = y;
+        var hue = 185 + Math.sin((cx / w) * 4) * 40 + Math.sin((cy / h) * 5) * 30 + (rng() - 0.5) * 26;
+        var light = 42 + (rng() - 0.5) * 24 + ((cy / h) * -10);
+        ctx.fillStyle = 'hsl(' + hue.toFixed(0) + ',' + (55 + rng() * 25).toFixed(0) + '%,' + light.toFixed(0) + '%)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, u * 0.56, 0, Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(6,24,38,.5)';
+        ctx.lineWidth = Math.max(1, u * 0.06);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.06 + rng() * 0.18).toFixed(2) + ')';
+        ctx.beginPath();
+        ctx.arc(cx, cy + u * 0.16, u * 0.26, 0, Math.PI);
+        ctx.fill();
+      }
+    }
+  }
+
+  // ── 花布：條紋底加上密集的小花 ──
+  function drawFabric(ctx, w, h, rng) {
+    var u = unit(w);
+    ctx.fillStyle = '#fdf2e3';
+    ctx.fillRect(0, 0, w, h);
+    for (var sx = 0; sx < w + h; sx += u * 0.34) {
+      ctx.strokeStyle = sx % (u * 0.68) < u * 0.34 ? 'rgba(210,150,120,.30)' : 'rgba(120,170,190,.24)';
+      ctx.lineWidth = u * 0.14;
+      ctx.beginPath();
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx - h, h);
+      ctx.stroke();
+    }
+    var petals = ['#e8556d', '#f2913f', '#f5c84b', '#5fb083', '#4f92c9', '#a776c9', '#d4699c'];
+    var count = Math.round((w * h) / (u * u) * 4.5);
+    for (var i = 0; i < count; i++) {
+      var x = rng() * w, y = rng() * h;
+      var r = u * (0.08 + rng() * 0.1);
+      var color = pick(rng, petals);
+      var n = 5 + Math.floor(rng() * 2);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rng() * Math.PI);
+      ctx.fillStyle = color;
+      for (var p = 0; p < n; p++) {
+        var a = (Math.PI * 2 * p) / n;
+        ctx.beginPath();
+        ctx.ellipse(Math.cos(a) * r, Math.sin(a) * r, r * 0.8, r * 0.55, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = rng() < 0.5 ? '#fff0b8' : '#fffdf2';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // ── 拼貼：密集的三角形，每片獨立配色並描邊 ──
+  function drawMosaic(ctx, w, h, rng) {
+    var palette = ['#ff6b8b', '#ffc247', '#42c9a3', '#5aa9f5', '#b98cff', '#ff9f6b',
+                   '#2f4b7c', '#ffe6a7', '#1f8a70', '#e0409a', '#6b4bd8', '#f75c3c'];
+    var u = unit(w) * 0.5;
+    var cols = Math.ceil(w / u), rows = Math.ceil(h / u);
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var x = c * u, y = r * u, flip = rng() < 0.5;
+        [0, 1].forEach(function (half) {
+          ctx.fillStyle = pick(rng, palette);
+          ctx.beginPath();
+          if (half === 0) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + u, y);
+            flip ? ctx.lineTo(x, y + u) : ctx.lineTo(x + u, y + u);
+          } else {
+            flip ? ctx.moveTo(x + u, y) : ctx.moveTo(x, y);
+            ctx.lineTo(x + u, y + u);
+            ctx.lineTo(x, y + u);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,.22)';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        });
+      }
+    }
+  }
+
+  // ── 星圖：星座連線加上星雲，每一區的星形都不一樣 ──
+  function drawChart(ctx, w, h, rng) {
+    gradient(ctx, w, h, [[0, '#0a1230'], [.55, '#132a54'], [1, '#0d1c3c']]);
+    var u = unit(w);
+
+    var nebula = ['#5b3fa8', '#2f6fa8', '#a8437a', '#2f8a86'];
+    for (var n = 0; n < 14; n++) {
+      var nx = rng() * w, ny = rng() * h, nr = u * (0.5 + rng() * 1.1);
+      var g = ctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
+      g.addColorStop(0, pick(rng, nebula) + 'aa');
+      g.addColorStop(1, 'rgba(10,18,48,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(nx, ny, nr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    var stars = [];
+    var count = Math.round((w * h) / (u * u) * 7);
+    for (var i = 0; i < count; i++) {
+      stars.push({ x: rng() * w, y: rng() * h, r: 0.7 + rng() * 2.8 });
+    }
+    // 星座連線：挑幾顆星，把鄰近的接起來
+    ctx.strokeStyle = 'rgba(160,200,255,.45)';
+    ctx.lineWidth = 1.1;
+    for (var k = 0; k < Math.round(count / 9); k++) {
+      var s = stars[Math.floor(rng() * stars.length)];
+      var chain = 2 + Math.floor(rng() * 3);
+      var cur = s;
+      ctx.beginPath();
+      ctx.moveTo(cur.x, cur.y);
+      for (var j = 0; j < chain; j++) {
+        var best = null, bestD = Infinity;
+        for (var m = 0; m < stars.length; m++) {
+          var t = stars[m];
+          if (t === cur) continue;
+          var d = (t.x - cur.x) * (t.x - cur.x) + (t.y - cur.y) * (t.y - cur.y);
+          if (d < bestD && d > (u * 0.2) * (u * 0.2) && d < (u * 1.3) * (u * 1.3)) { bestD = d; best = t; }
+        }
+        if (!best) break;
+        ctx.lineTo(best.x, best.y);
+        best.big = true;
+        cur.big = true;
+        cur = best;
+      }
+      ctx.stroke();
+    }
+    stars.forEach(function (st) {
+      ctx.fillStyle = st.big ? '#ffffff' : 'rgba(220,235,255,' + (0.4 + rng() * 0.5).toFixed(2) + ')';
+      ctx.beginPath();
+      ctx.arc(st.x, st.y, st.big ? st.r * 1.5 : st.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 
   function gradient(ctx, w, h, stops) {
@@ -46,205 +299,12 @@
     ctx.fillRect(0, 0, w, h);
   }
 
-  // ── 黃昏：漸層天空、落日、層疊山稜、海面倒影 ──
-  function drawSunset(ctx, w, h, rng) {
-    gradient(ctx, w, h, [[0, '#2b2a6b'], [.32, '#9b4a8f'], [.58, '#ef6f5c'], [.78, '#ffb457'], [1, '#ffe08a']]);
-
-    var sunY = h * 0.62, sunR = Math.min(w, h) * 0.13;
-    var glow = ctx.createRadialGradient(w * 0.5, sunY, sunR * 0.4, w * 0.5, sunY, sunR * 3);
-    glow.addColorStop(0, 'rgba(255,235,170,.95)');
-    glow.addColorStop(1, 'rgba(255,200,120,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#fff2c4';
-    ctx.beginPath();
-    ctx.arc(w * 0.5, sunY, sunR, 0, Math.PI * 2);
-    ctx.fill();
-
-    [[0.66, '#7c3a6d', 5], [0.74, '#54295a', 7]].forEach(function (layer) {
-      ctx.fillStyle = layer[1];
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-      var peaks = layer[2];
-      for (var i = 0; i <= peaks; i++) {
-        var x = (w * i) / peaks;
-        var y = h * layer[0] - Math.abs(Math.sin(i * 1.7 + layer[0] * 9)) * h * 0.13;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-      ctx.fill();
-    });
-
-    ctx.fillStyle = '#3a1c4a';
-    ctx.fillRect(0, h * 0.82, w, h * 0.18);
-    ctx.fillStyle = 'rgba(255,220,150,.5)';
-    for (var i = 0; i < 26; i++) {
-      var ry = h * 0.83 + rng() * h * 0.16;
-      var rw = w * (0.05 + rng() * 0.22);
-      ctx.fillRect(w * 0.5 - rw / 2 + (rng() - 0.5) * w * 0.25, ry, rw, 2.5);
-    }
-  }
-
-  // ── 海浪：層疊正弦曲線 ──
-  function drawWaves(ctx, w, h, rng) {
-    gradient(ctx, w, h, [[0, '#bff0ff'], [.35, '#6fc7f0'], [1, '#1b5e96']]);
-    var colors = ['rgba(255,255,255,.35)', '#8ed6f2', '#4aa8d8', '#2b7fb8', '#1d5f92'];
-    for (var layer = 0; layer < colors.length; layer++) {
-      var baseY = h * (0.26 + layer * 0.16);
-      var amp = h * (0.07 - layer * 0.008);
-      var freq = 1.6 + layer * 0.55;
-      var phase = rng() * Math.PI * 2;
-      ctx.fillStyle = colors[layer];
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-      for (var x = 0; x <= w; x += 4) {
-        var t = (x / w) * Math.PI * 2 * freq + phase;
-        ctx.lineTo(x, baseY + Math.sin(t) * amp + Math.sin(t * 2.3) * amp * 0.35);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.fillStyle = 'rgba(255,255,255,.65)';
-    for (var i = 0; i < 60; i++) {
-      var r = 1.5 + rng() * 3;
-      ctx.beginPath();
-      ctx.arc(rng() * w, h * (0.28 + rng() * 0.66), r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // ── 星空：星點、月亮、銀河 ──
-  function drawNight(ctx, w, h, rng) {
-    gradient(ctx, w, h, [[0, '#070d2e'], [.5, '#152a5e'], [1, '#2e4f86']]);
-
-    var band = ctx.createLinearGradient(0, h * 0.2, w, h * 0.8);
-    band.addColorStop(0, 'rgba(120,150,255,0)');
-    band.addColorStop(0.5, 'rgba(170,190,255,.22)');
-    band.addColorStop(1, 'rgba(120,150,255,0)');
-    ctx.fillStyle = band;
-    ctx.fillRect(0, 0, w, h);
-
-    for (var i = 0; i < 220; i++) {
-      var x = rng() * w, y = rng() * h;
-      var r = rng() * 1.9 + 0.4;
-      ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + rng() * 0.65).toFixed(2) + ')';
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // 幾顆大星星畫成十字光芒
-    for (var j = 0; j < 7; j++) {
-      var sx = rng() * w, sy = rng() * h * 0.8, len = 6 + rng() * 10;
-      ctx.strokeStyle = 'rgba(255,255,255,.85)';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(sx - len, sy); ctx.lineTo(sx + len, sy);
-      ctx.moveTo(sx, sy - len); ctx.lineTo(sx, sy + len);
-      ctx.stroke();
-    }
-
-    var mx = w * 0.76, my = h * 0.2, mr = Math.min(w, h) * 0.1;
-    ctx.fillStyle = '#fff6d8';
-    ctx.beginPath();
-    ctx.arc(mx, my, mr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    ctx.arc(mx + mr * 0.42, my - mr * 0.28, mr * 0.92, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-  }
-
-  // ── 花園：重複的花朵圖樣 ──
-  function drawGarden(ctx, w, h, rng) {
-    gradient(ctx, w, h, [[0, '#e9f8e2'], [1, '#bde8c8']]);
-    var petals = ['#ff8fb1', '#ffc247', '#ff7f6b', '#c78cf0', '#6fd6a8', '#5aa9f5'];
-    var step = Math.min(w, h) * 0.2;
-    for (var y = step * 0.4; y < h + step; y += step) {
-      for (var x = step * 0.4; x < w + step; x += step) {
-        var cx = x + (rng() - 0.5) * step * 0.5;
-        var cy = y + (rng() - 0.5) * step * 0.5;
-        var r = step * (0.18 + rng() * 0.12);
-        var color = petals[Math.floor(rng() * petals.length)];
-        ctx.fillStyle = color;
-        for (var p = 0; p < 6; p++) {
-          var a = (Math.PI * 2 * p) / 6 + rng() * 0.2;
-          ctx.beginPath();
-          ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, r * 0.72, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.fillStyle = '#fff3c4';
-        ctx.beginPath();
-        ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
-
-  // ── 彩虹：斜向色帶配柔和圓點 ──
-  function drawRainbow(ctx, w, h, rng) {
-    var hues = [348, 20, 45, 140, 195, 260, 310];
-    var diag = w + h;
-    var band = diag / hues.length;
-    ctx.save();
-    ctx.translate(0, 0);
-    for (var i = 0; i < hues.length; i++) {
-      ctx.fillStyle = 'hsl(' + hues[i] + ',82%,66%)';
-      ctx.beginPath();
-      ctx.moveTo(i * band, 0);
-      ctx.lineTo((i + 1) * band, 0);
-      ctx.lineTo((i + 1) * band - h, h);
-      ctx.lineTo(i * band - h, h);
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.restore();
-    for (var j = 0; j < 40; j++) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (0.12 + rng() * 0.28).toFixed(2) + ')';
-      ctx.beginPath();
-      ctx.arc(rng() * w, rng() * h, Math.min(w, h) * (0.03 + rng() * 0.09), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // ── 幾何：三角形拼貼 ──
-  function drawMosaic(ctx, w, h, rng) {
-    var palette = ['#ff6b8b', '#ffc247', '#42c9a3', '#5aa9f5', '#b98cff', '#ff9f6b', '#2f4b7c', '#ffe6a7'];
-    var cols = 8;
-    var cw = w / cols;
-    var rows = Math.max(4, Math.round(h / cw));
-    var ch = h / rows;
-    for (var r = 0; r < rows; r++) {
-      for (var c = 0; c < cols; c++) {
-        var x = c * cw, y = r * ch;
-        var flip = rng() < 0.5;
-        var a = palette[Math.floor(rng() * palette.length)];
-        var b = palette[Math.floor(rng() * palette.length)];
-        ctx.fillStyle = a;
-        ctx.beginPath();
-        if (flip) { ctx.moveTo(x, y); ctx.lineTo(x + cw, y); ctx.lineTo(x, y + ch); }
-        else { ctx.moveTo(x, y); ctx.lineTo(x + cw, y); ctx.lineTo(x + cw, y + ch); }
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = b;
-        ctx.beginPath();
-        if (flip) { ctx.moveTo(x + cw, y); ctx.lineTo(x + cw, y + ch); ctx.lineTo(x, y + ch); }
-        else { ctx.moveTo(x, y); ctx.lineTo(x + cw, y + ch); ctx.lineTo(x, y + ch); }
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-  }
-
   global.BD = global.BD || {};
   global.BD.Pictures = {
     LIST: PICTURES,
     count: PICTURES.length,
-    nameOf: function (index) {
-      return PICTURES[((index % PICTURES.length) + PICTURES.length) % PICTURES.length].name;
-    },
-    url: url
+    nameOf: function (index) { return at(index).name; },
+    url: url,
+    thumb: thumb
   };
 })(typeof window !== 'undefined' ? window : globalThis);

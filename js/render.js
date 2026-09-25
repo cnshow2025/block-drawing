@@ -18,12 +18,11 @@
 
   /**
    * 建出一塊方塊的 DOM（不含定位，由呼叫端決定放哪）。
-   * skin 決定外觀：null 或 mode 'off' 是彩色方塊；
-   * 'reveal' 把方塊目前壓住的那幾格圖片透出來；
-   * 'jigsaw' 讓方塊永遠帶著自己正確位置的那片圖。
+   * 給了 skin 就是圖片拼圖：方塊從在方塊盤裡就帶著自己正確位置的那片圖，
+   * 靠紋路接不接得起來判斷位置。沒給就是原本的彩色方塊。
    */
   function pieceEl(shape, cells, cellPx, skin) {
-    if (skin && skin.mode === 'jigsaw' && skin.home) return jigsawPieceEl(shape, cellPx, skin);
+    if (skin && skin.home) return jigsawPieceEl(shape, cellPx, skin);
 
     var d = Shapes.dims(cells);
     var color = Shapes.colorOf(shape);
@@ -34,16 +33,12 @@
     node.style.setProperty('--c-light', color.light);
     node.style.setProperty('--c-dark', color.dark);
 
-    var reveal = skin && skin.mode === 'reveal' && skin.origin;
     for (var i = 0; i < cells.length; i++) {
       var box = el('div', 'cellbox');
       box.style.left = cells[i][1] * cellPx + GAP / 2 + 'px';
       box.style.top = cells[i][0] * cellPx + GAP / 2 + 'px';
       box.style.width = cellPx - GAP + 'px';
       box.style.height = cellPx - GAP + 'px';
-      if (reveal) {
-        paintSlice(box, skin, skin.origin.r + cells[i][0], skin.origin.c + cells[i][1], cellPx);
-      }
       node.appendChild(box);
     }
     return node;
@@ -60,7 +55,7 @@
   }
 
   /**
-   * 真拼圖的一塊。
+   * 圖片拼圖的一塊。
    * 先照「正確位置」的姿態把圖貼好，再用一次 CSS transform 把整塊轉到玩家
    * 目前的方向——圖案自然跟著轉，不必逐格去算旋轉後該對到哪一片。
    */
@@ -125,7 +120,7 @@
     state.pieces.forEach(function (piece) {
       if (!piece.placed) return;
       var cells = Board.cellsOf(piece);
-      var node = pieceEl(Board.shapeOf(piece), cells, cellPx, skinFor && skinFor(piece, true));
+      var node = pieceEl(Board.shapeOf(piece), cells, cellPx, skinFor && skinFor(piece));
       node.style.left = piece.c * cellPx + 'px';
       node.style.top = piece.r * cellPx + 'px';
       node.dataset.uid = piece.uid;
@@ -168,7 +163,7 @@
       var slot = el('div', 'tray-slot');
       slot.dataset.uid = piece.uid;
       if (piece.uid === selectedUid) slot.classList.add('is-selected');
-      slot.appendChild(pieceEl(Board.shapeOf(piece), cells, trayCell, skinFor && skinFor(piece, false)));
+      slot.appendChild(pieceEl(Board.shapeOf(piece), cells, trayCell, skinFor && skinFor(piece)));
       slot.addEventListener('pointerdown', function (ev) { onPointerDown(ev, piece, slot); });
       tray.appendChild(slot);
     });

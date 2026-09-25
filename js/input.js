@@ -77,7 +77,7 @@
   function makeLayer() {
     var piece = drag.piece;
     var cells = Board.cellsOf(piece);
-    var node = Render.pieceEl(Board.shapeOf(piece), cells, cellPx(), ctx.skinFor(piece, false));
+    var node = Render.pieceEl(Board.shapeOf(piece), cells, cellPx(), ctx.skinFor(piece));
     node.classList.add('drag-layer');
     document.body.appendChild(node);
     drag.layer = node;
@@ -236,7 +236,7 @@
     else piece.rot = (piece.rot + 1) & 3;
 
     var cells = Board.cellsOf(piece);
-    var fresh = Render.pieceEl(Board.shapeOf(piece), cells, cellPx(), ctx.skinFor(piece, false));
+    var fresh = Render.pieceEl(Board.shapeOf(piece), cells, cellPx(), ctx.skinFor(piece));
     fresh.classList.add('drag-layer');
     drag.layer.replaceWith(fresh);
     drag.layer = fresh;
