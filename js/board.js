@@ -49,8 +49,12 @@
     for (var i = 0; i < total; i++) cells[i] = mask.grid[i] === 1 ? EMPTY : VOID;
 
     var pieces = ids.map(function (id, idx) {
-      return { uid: idx + 1, shapeId: id, rot: 0, flip: 0, placed: false, r: 0, c: 0 };
+      return { uid: idx + 1, shapeId: id, rot: 0, flip: 0, placed: false, r: 0, c: 0, home: null };
     });
+
+    // 精準拼合關的方塊盤就是切割結果本身，所以每一塊都找得到自己的「正確位置」。
+    // 圖片拼圖的提示版要靠它決定每塊方塊該帶哪一片圖。
+    if (level.mode === 'exact') assignHomes(pieces, built.pieces);
 
     return {
       level: level,
@@ -64,6 +68,33 @@
       hintsUsed: 0,
       startedAt: Date.now()
     };
+  }
+
+  /** 把切割答案一對一配給方塊盤裡同形狀的方塊 */
+  function assignHomes(pieces, solution) {
+    var byShape = {};
+    solution.forEach(function (sol) {
+      (byShape[sol.shapeId] = byShape[sol.shapeId] || []).push(sol);
+    });
+    pieces.forEach(function (piece) {
+      var bucket = byShape[piece.shapeId];
+      if (!bucket || !bucket.length) return;
+      var sol = bucket.shift();
+      piece.home = { r: sol.r, c: sol.c, rot: sol.rot, flip: sol.flip };
+    });
+  }
+
+  /** 每一塊是不是都停在自己的正確位置上（圖片拼圖用來判斷圖案有沒有對上） */
+  function allAtHome(state) {
+    for (var i = 0; i < state.pieces.length; i++) {
+      var p = state.pieces[i];
+      if (!p.home) return false;
+      if (!p.placed || p.r !== p.home.r || p.c !== p.home.c) return false;
+      var here = Shapes.cellsKey(cellsOf(p));
+      var want = Shapes.cellsKey(Shapes.transform(shapeOf(p).cells, p.home.rot, p.home.flip));
+      if (here !== want) return false;
+    }
+    return true;
   }
 
   function shapeOf(piece) { return Shapes.get(piece.shapeId); }
@@ -227,6 +258,7 @@
     VOID: VOID,
     EMPTY: EMPTY,
     createGame: createGame,
+    allAtHome: allAtHome,
     shapeOf: shapeOf,
     cellsOf: cellsOf,
     boundsOf: boundsOf,

@@ -16,8 +16,15 @@
     return node;
   }
 
-  /** 建出一塊方塊的 DOM（不含定位，由呼叫端決定放哪） */
-  function pieceEl(shape, cells, cellPx) {
+  /**
+   * 建出一塊方塊的 DOM（不含定位，由呼叫端決定放哪）。
+   * skin 決定外觀：null 或 mode 'off' 是彩色方塊；
+   * 'reveal' 把方塊目前壓住的那幾格圖片透出來；
+   * 'jigsaw' 讓方塊永遠帶著自己正確位置的那片圖。
+   */
+  function pieceEl(shape, cells, cellPx, skin) {
+    if (skin && skin.mode === 'jigsaw' && skin.home) return jigsawPieceEl(shape, cellPx, skin);
+
     var d = Shapes.dims(cells);
     var color = Shapes.colorOf(shape);
     var node = el('div', 'piece');
@@ -27,15 +34,69 @@
     node.style.setProperty('--c-light', color.light);
     node.style.setProperty('--c-dark', color.dark);
 
+    var reveal = skin && skin.mode === 'reveal' && skin.origin;
     for (var i = 0; i < cells.length; i++) {
       var box = el('div', 'cellbox');
       box.style.left = cells[i][1] * cellPx + GAP / 2 + 'px';
       box.style.top = cells[i][0] * cellPx + GAP / 2 + 'px';
       box.style.width = cellPx - GAP + 'px';
       box.style.height = cellPx - GAP + 'px';
+      if (reveal) {
+        paintSlice(box, skin, skin.origin.r + cells[i][0], skin.origin.c + cells[i][1], cellPx);
+      }
       node.appendChild(box);
     }
     return node;
+  }
+
+  /** 把整張圖裡對應這一格的那一小塊貼上去 */
+  function paintSlice(box, skin, r, c, cellPx) {
+    box.classList.add('cellbox--pic');
+    box.style.backgroundImage = 'url(' + skin.url + ')';
+    box.style.backgroundSize = skin.boardW + 'px ' + skin.boardH + 'px';
+    box.style.backgroundRepeat = 'no-repeat';
+    box.style.backgroundPosition =
+      (-(c * cellPx + GAP / 2)) + 'px ' + (-(r * cellPx + GAP / 2)) + 'px';
+  }
+
+  /**
+   * 真拼圖的一塊。
+   * 先照「正確位置」的姿態把圖貼好，再用一次 CSS transform 把整塊轉到玩家
+   * 目前的方向——圖案自然跟著轉，不必逐格去算旋轉後該對到哪一片。
+   */
+  function jigsawPieceEl(shape, cellPx, skin) {
+    var home = skin.home;
+    var homeCells = Shapes.transform(shape.cells, home.rot, home.flip);
+    var hd = Shapes.dims(homeCells);
+    var cd = Shapes.dims(Shapes.transform(shape.cells, skin.rot, skin.flip));
+
+    var inner = el('div', 'piece-pic');
+    inner.style.width = hd.cols * cellPx + 'px';
+    inner.style.height = hd.rows * cellPx + 'px';
+    for (var i = 0; i < homeCells.length; i++) {
+      var box = el('div', 'cellbox');
+      box.style.left = homeCells[i][1] * cellPx + GAP / 2 + 'px';
+      box.style.top = homeCells[i][0] * cellPx + GAP / 2 + 'px';
+      box.style.width = cellPx - GAP + 'px';
+      box.style.height = cellPx - GAP + 'px';
+      paintSlice(box, skin, home.r + homeCells[i][0], home.c + homeCells[i][1], cellPx);
+      inner.appendChild(box);
+    }
+
+    // 從正確姿態轉到目前姿態所需的相對變換。
+    // 姿態是「先鏡像再轉」的組合，翻轉狀態一樣時只差旋轉；不一樣時
+    // 鏡像會把旋轉方向反過來，所以角度變成兩者相加。
+    var delta = (skin.flip === home.flip)
+      ? { rot: (skin.rot - home.rot + 4) & 3, flip: 0 }
+      : { rot: (skin.rot + home.rot) & 3, flip: 1 };
+    inner.style.transform = 'translate(-50%, -50%) rotate(' + (delta.rot * 90) + 'deg)' +
+      (delta.flip ? ' scaleX(-1)' : '');
+
+    var wrap = el('div', 'piece');
+    wrap.style.width = cd.cols * cellPx + 'px';
+    wrap.style.height = cd.rows * cellPx + 'px';
+    wrap.appendChild(inner);
+    return wrap;
   }
 
   /** 畫出棋盤底層格子 */
@@ -59,12 +120,12 @@
   }
 
   /** 依狀態重畫所有「已放上棋盤」的方塊 */
-  function syncPlaced(refs, state, cellPx) {
+  function syncPlaced(refs, state, cellPx, skinFor) {
     refs.pieces.textContent = '';
     state.pieces.forEach(function (piece) {
       if (!piece.placed) return;
       var cells = Board.cellsOf(piece);
-      var node = pieceEl(Board.shapeOf(piece), cells, cellPx);
+      var node = pieceEl(Board.shapeOf(piece), cells, cellPx, skinFor && skinFor(piece, true));
       node.style.left = piece.c * cellPx + 'px';
       node.style.top = piece.r * cellPx + 'px';
       node.dataset.uid = piece.uid;
@@ -90,7 +151,7 @@
   function clearGhost(refs) { refs.ghost.textContent = ''; }
 
   /** 方塊盤 */
-  function buildTray(refs, state, trayCell, onPointerDown, selectedUid) {
+  function buildTray(refs, state, trayCell, onPointerDown, selectedUid, skinFor) {
     var tray = refs.tray;
     tray.textContent = '';
     var rest = Board.remaining(state);
@@ -107,7 +168,7 @@
       var slot = el('div', 'tray-slot');
       slot.dataset.uid = piece.uid;
       if (piece.uid === selectedUid) slot.classList.add('is-selected');
-      slot.appendChild(pieceEl(Board.shapeOf(piece), cells, trayCell));
+      slot.appendChild(pieceEl(Board.shapeOf(piece), cells, trayCell, skinFor && skinFor(piece, false)));
       slot.addEventListener('pointerdown', function (ev) { onPointerDown(ev, piece, slot); });
       tray.appendChild(slot);
     });
@@ -148,6 +209,7 @@
     GAP: GAP,
     el: el,
     pieceEl: pieceEl,
+    paintSlice: paintSlice,
     buildBoard: buildBoard,
     syncPlaced: syncPlaced,
     showGhost: showGhost,

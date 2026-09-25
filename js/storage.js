@@ -25,7 +25,7 @@
   }
 
   var progress = read(KEY, {});
-  var prefs = read(PREFS, { sound: true });
+  var prefs = read(PREFS, { sound: true, pictureMode: 'off', pictureIndex: 0 });
 
   function recordOf(levelId) {
     return progress[levelId] || { stars: 0, best: 0, cleared: false };

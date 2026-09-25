@@ -4,6 +4,7 @@
 
   var Shapes = global.BD.Shapes;
   var Levels = global.BD.Levels;
+  var Pictures = global.BD.Pictures;
   var Board = global.BD.Board;
   var Storage = global.BD.Storage;
   var Audio = global.BD.Audio;
@@ -227,12 +228,20 @@
     }
     selectedUid = null;
     lastTheme = themeOf(lv);
+    state.picture = {
+      mode: pictureAllowed(lv) ? (Storage.getPref('pictureMode') || 'off') : 'off',
+      index: Storage.getPref('pictureIndex') || 0
+    };
+    if (state.picture.mode === 'jigsaw' && !state.pieces.some(function (p) { return p.home; })) {
+      state.picture.mode = 'off';
+    }
 
     $('play-name').textContent = lv.name;
     $('play-id').textContent = lv.isDaily ? lv.dateKey : '世界 ' + lv.world + '．關卡 ' + lv.id;
     show('screen-play', lastTheme);
 
     buildGoal();
+    refreshPictureButton();
     layout();
     refreshAll();
     setHint(lv.tip || (lv.mode === 'exact'
@@ -256,6 +265,101 @@
     }
   }
 
+  // ── 圖片拼圖 ───────────────────────────────────────────────
+  // 世界 4、5 才開放：那些關卡是精準拼合，每一塊都有「正確位置」，
+  // 提示版才有圖可帶。世界 1~3 當作打基本功的階段，維持彩色方塊。
+  function pictureAllowed(lv) {
+    return !!lv && lv.world >= 4 && lv.mode === 'exact';
+  }
+
+  /**
+   * 這塊方塊現在該長什麼樣。
+   * 挑戰版只讓「已經放到畫框上」的方塊透出圖片，方塊盤與拖曳中的維持彩色——
+   * 那既是難度的保證，也讓玩家在方塊盤裡還認得出形狀。
+   */
+  function skinFor(piece, onBoard) {
+    if (!state || !state.picture || state.picture.mode === 'off') return null;
+    var mode = state.picture.mode;
+    if (mode === 'jigsaw' && !piece.home) return null;
+    if (mode === 'reveal' && !onBoard) return null;
+    return {
+      mode: mode,
+      url: Pictures.url(state.picture.index, state.cols, state.rows),
+      boardW: state.cols * cell,
+      boardH: state.rows * cell,
+      origin: onBoard ? { r: piece.r, c: piece.c } : null,
+      home: piece.home,
+      rot: piece.rot,
+      flip: piece.flip
+    };
+  }
+
+  function setPicture(mode, index) {
+    if (!state) return;
+    state.picture.mode = mode;
+    if (typeof index === 'number') state.picture.index = index;
+    Storage.setPref('pictureMode', mode);
+    Storage.setPref('pictureIndex', state.picture.index);
+    refreshAll();
+    refreshPictureButton();
+  }
+
+  function refreshPictureButton() {
+    var btn = $('btn-picture');
+    btn.hidden = !pictureAllowed(level);
+    if (btn.hidden) return;
+    var on = state && state.picture.mode !== 'off';
+    btn.textContent = on ? '🖼' : '🎨';
+    btn.classList.toggle('is-on', on);
+    btn.setAttribute('aria-label', on
+      ? '圖片拼圖：' + Pictures.nameOf(state.picture.index)
+      : '切換成圖片拼圖');
+  }
+
+  function showPicturePanel() {
+    var cur = state.picture;
+    var opts = [
+      ['off', '彩色方塊', '原本的樣子，每塊一個顏色。'],
+      ['reveal', '圖片拼圖 · 挑戰版', '方塊放到哪就透出那裡的圖，填到哪圖就浮現到哪。難度完全不變。'],
+      ['jigsaw', '圖片拼圖 · 提示版', '每塊都帶著自己正確位置的那片圖，等於把答案畫在方塊上，會簡單很多。']
+    ];
+    var html = ['<h3>畫面外觀</h3>'];
+    html.push('<div class="skin-list">');
+    opts.forEach(function (o) {
+      html.push('<button class="skin-opt' + (cur.mode === o[0] ? ' is-on' : '') + '" data-mode="' + o[0] + '">' +
+        '<b>' + o[1] + '</b><span>' + o[2] + '</span></button>');
+    });
+    html.push('</div>');
+
+    html.push('<h4 class="skin-heading">換一張圖</h4>');
+    html.push('<div class="pic-list">');
+    for (var i = 0; i < Pictures.count; i++) {
+      html.push('<button class="pic-opt' + (cur.index === i ? ' is-on' : '') + '" data-pic="' + i + '" ' +
+        'style="background-image:url(' + Pictures.url(i, 4, 3) + ')">' +
+        '<span>' + Pictures.nameOf(i) + '</span></button>');
+    }
+    html.push('</div>');
+    html.push('<div class="modal__actions"><button class="btn btn--primary" data-act="ok">完成</button></div>');
+
+    openModal(html.join(''), function (card) {
+      card.querySelectorAll('[data-mode]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setPicture(btn.dataset.mode);
+          closeModal();
+          showPicturePanel();
+        });
+      });
+      card.querySelectorAll('[data-pic]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setPicture(state.picture.mode === 'off' ? 'reveal' : state.picture.mode, Number(btn.dataset.pic));
+          closeModal();
+          showPicturePanel();
+        });
+      });
+      card.querySelector('[data-act="ok"]').addEventListener('click', closeModal);
+    });
+  }
+
   // ── 版面計算 ───────────────────────────────────────────────
   function layout() {
     if (!state) return;
@@ -264,7 +368,7 @@
     var byH = (wrap.height - 20) / state.rows;
     cell = Math.max(14, Math.min(78, Math.floor(Math.min(byW, byH))));
     Render.buildBoard(refs, state, cell);
-    Render.syncPlaced(refs, state, cell);
+    Render.syncPlaced(refs, state, cell, skinFor);
     bindPlacedPieces();
     fitTray();
   }
@@ -300,7 +404,7 @@
   function renderTray() {
     Render.buildTray(refs, state, trayCell, function (ev, piece, slotEl) {
       Input.begin(ev, piece, slotEl, false);
-    }, selectedUid);
+    }, selectedUid, skinFor);
   }
 
   function bindPlacedPieces() {
@@ -317,7 +421,7 @@
 
   // ── 狀態更新 ───────────────────────────────────────────────
   function refreshAll() {
-    Render.syncPlaced(refs, state, cell);
+    Render.syncPlaced(refs, state, cell, skinFor);
     bindPlacedPieces();
     fitTray();
     refreshStats();
@@ -343,6 +447,7 @@
     audio: Audio,
     getState: function () { return state; },
     getCellPx: function () { return cell; },
+    skinFor: skinFor,
 
     onSelect: function (piece) { tapPiece(piece); },
 
@@ -549,6 +654,13 @@
       lines.push('<p>' + (result.cleared
         ? '使用提示 ' + state.hintsUsed + ' 次。不用提示就能拼完可拿三顆星。'
         : '這一關要完全填滿才算過關。') + '</p>');
+      // 提示版每塊都帶著正確位置的圖，但解法往往不只一種——
+      // 拼滿了圖案卻沒接上，那是另一種解，值得講一句
+      if (result.cleared && state.picture && state.picture.mode === 'jigsaw') {
+        lines.push('<p>' + (Board.allAtHome(state)
+          ? '🖼 圖案完全對上了，每一塊都在自己的位置。'
+          : '🖼 拼滿了，但圖案沒接上——你找到的是另一種解法。') + '</p>');
+      }
     } else {
       var t = level.stars || [70, 85, 95];
       lines.push('<p>星等門檻：' + t[0] + '% / ' + t[1] + '% / ' + t[2] + '%'
@@ -594,6 +706,7 @@
       '<li>放錯了可以把方塊<b>從畫框裡拖回來</b>，或按「復原」。</li>',
       '<li>三十關都是<b>精準拼合</b>：方塊不多不少，剛好把畫框填滿才過關，不用提示拼完就是三顆星。</li>',
       '<li><b>每日挑戰</b>則是填滿率計分，方塊不見得剛好，填越滿星星越多。</li>',
+      '<li><b>世界 4、5</b> 可以切換成<b>圖片拼圖</b>（右上角的按鈕）：挑戰版是填到哪圖就浮現到哪，難度不變；提示版每塊都帶著正確位置的那片圖，會簡單很多。</li>',
       '<li>每日挑戰每天換一題，題目由當天日期決定，全世界同一題；連續挑戰會累積天數。</li>',
       '<li>進度存在這台裝置上，關掉再開會從<b>還沒過的那一關</b>接著打；「我的成績」可以看每一關的星數與最佳填滿率。</li>',
       '<li>電腦鍵盤：<b>R</b> 旋轉、<b>F</b> 翻轉、<b>Ctrl+Z</b> 復原。</li>',
@@ -800,6 +913,7 @@
       show('screen-levels', lastTheme);
     });
 
+    $('btn-picture').addEventListener('click', showPicturePanel);
     $('btn-rotate').addEventListener('click', function () { transformSelected('rotate'); });
     $('btn-flip').addEventListener('click', function () { transformSelected('flip'); });
     $('btn-undo').addEventListener('click', undo);
