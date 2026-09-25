@@ -609,6 +609,46 @@ body {
               0 2px 4px rgba(20, 40, 55, .22);
 }
 
+/* 帶文字的膠囊鈕：純圖示的按鈕在某些裝置上會變成空白方塊，看不出能點 */
+.chip-btn {
+  appearance: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 40px;
+  padding: 0 13px;
+  border-radius: 14px;
+  color: var(--accent-ink);
+  background: var(--card);
+  box-shadow: 0 4px 12px rgba(20, 50, 60, .12);
+  transition: background .2s ease, color .2s ease, transform .12s ease;
+}
+.chip-btn b { font-size: 13.5px; font-weight: 700; letter-spacing: .06em; }
+.chip-btn i {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(23, 49, 60, .1);
+}
+.chip-btn:active { transform: scale(.95); }
+.chip-btn.is-on {
+  color: #fff;
+  background: linear-gradient(140deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #ff9ad5));
+}
+.chip-btn.is-on i { background: rgba(255, 255, 255, .28); }
+
+@media (max-width: 420px) {
+  .chip-btn { padding: 0 10px; gap: 4px; }
+  .chip-btn b { font-size: 12.5px; }
+}
+
 .icon-btn.is-on {
   color: #fff;
   background: linear-gradient(140deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #ff9ad5));
