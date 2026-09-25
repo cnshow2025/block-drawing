@@ -159,6 +159,17 @@
     });
   }
 
+  /** 這一關用的是幾格的方塊——全部關卡都要填滿之後，這才是難度的主要來源 */
+  function poolLabel(lv) {
+    var sizes = [];
+    lv.pool.forEach(function (id) {
+      var size = Shapes.get(id).size;
+      if (sizes.indexOf(size) < 0) sizes.push(size);
+    });
+    sizes.sort(function (a, b) { return a - b; });
+    return sizes.join('＋') + ' 格';
+  }
+
   function themeColor(theme) {
     return ({
       mint: '#10a37f', sky: '#2b7fd4', peach: '#e8632f',
@@ -192,7 +203,7 @@
     }
 
     var mode = Render.el('span', 'level-card__mode');
-    mode.textContent = lv.mode === 'exact' ? '精準拼合' : '填滿計分';
+    mode.textContent = poolLabel(lv);
 
     card.appendChild(id);
     card.appendChild(name);
@@ -225,7 +236,7 @@
     layout();
     refreshAll();
     setHint(lv.tip || (lv.mode === 'exact'
-      ? '用完所有方塊、把畫框完全填滿就過關。'
+      ? '方塊不多不少，用完全部、剛好填滿畫框就過關。'
       : '方塊不見得剛好——填得越滿，星星越多。'));
   }
 
@@ -581,8 +592,9 @@
       '<li>點一下方塊<b>選取</b>，<b>再點一下就轉 90°</b>，連續點就一直轉；也可以按「旋轉」「翻轉」按鈕。</li>',
       '<li>已經放進畫框的方塊同樣可以點著轉——除非旁邊空間不夠，那就得先把它拖開。</li>',
       '<li>放錯了可以把方塊<b>從畫框裡拖回來</b>，或按「復原」。</li>',
-      '<li><b>精準拼合</b>關卡必須完全填滿；<b>填滿計分</b>關卡則是填越滿星星越多。</li>',
-      '<li><b>每日挑戰</b>每天換一題，題目由當天日期決定，全世界同一題；連續挑戰會累積天數。</li>',
+      '<li>三十關都是<b>精準拼合</b>：方塊不多不少，剛好把畫框填滿才過關，不用提示拼完就是三顆星。</li>',
+      '<li><b>每日挑戰</b>則是填滿率計分，方塊不見得剛好，填越滿星星越多。</li>',
+      '<li>每日挑戰每天換一題，題目由當天日期決定，全世界同一題；連續挑戰會累積天數。</li>',
       '<li>進度存在這台裝置上，關掉再開會從<b>還沒過的那一關</b>接著打；「我的成績」可以看每一關的星數與最佳填滿率。</li>',
       '<li>電腦鍵盤：<b>R</b> 旋轉、<b>F</b> 翻轉、<b>Ctrl+Z</b> 復原。</li>',
       '</ul>',

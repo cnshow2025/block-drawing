@@ -18,7 +18,7 @@
     { id: 1, name: '幾何樂園', theme: 'mint',    desc: '從最單純的方形開始，認識拖曳、旋轉與翻轉。' },
     { id: 2, name: '方塊工廠', theme: 'sky',     desc: '七種四格方塊全數登場，鋪滿整片生產線。' },
     { id: 3, name: '洞穴迷宮', theme: 'peach',   desc: '盤面開始出現孔洞與缺口，五格方塊加入戰局。' },
-    { id: 4, name: '碎片星河', theme: 'grape',   desc: '十二件五格方塊與不規則外框的硬仗。' },
+    { id: 4, name: '碎片星河', theme: 'grape',   desc: '十二件五格方塊與不規則外框的硬仗，全部都要拼滿。' },
     { id: 5, name: '繽紛花園', theme: 'rainbow', desc: '造型畫框登場，方塊不見得剛剛好——填越滿分越高。' }
   ];
 
@@ -198,22 +198,20 @@
       ]
     },
     {
-      id: '3-5', world: 3, name: '大廳', mode: 'score', pool: T2.concat(T3), seed: 3505,
-      swap: 2, extra: 2, stars: [72, 83, 92],
-      tip: '方塊不再剛剛好——填越滿，星星越多。',
+      id: '3-5', world: 3, name: '大廳', mode: 'exact', pool: T2.concat(T3), seed: 3580,
+      tip: '從這裡開始，剩下的關卡都要完全填滿才算過關。',
       mask: [
-        '########',
-        '########',
-        '##....##',
-        '##....##',
-        '##....##',
-        '########',
-        '########'
+        '#########',
+        '#########',
+        '##.....##',
+        '##.....##',
+        '##.....##',
+        '#########',
+        '#########'
       ]
     },
     {
-      id: '3-6', world: 3, name: '石柱陣', mode: 'score', pool: T2.concat(T3), seed: 3606,
-      swap: 2, extra: 1, stars: [76, 88, 95],
+      id: '3-6', world: 3, name: '石柱陣', mode: 'exact', pool: T2.concat(T3), seed: 3704,
       mask: [
         '########',
         '#.#..#.#',
@@ -262,20 +260,19 @@
       ]
     },
     {
-      id: '4-4', world: 4, name: '工字星艦', mode: 'score', pool: T3, seed: 4404,
-      swap: 2, extra: 3, stars: [63, 73, 83],
+      id: '4-4', world: 4, name: '工字星艦', mode: 'exact', pool: T3, seed: 4408,
       mask: [
-        '##...##',
-        '##...##',
-        '#######',
-        '#######',
-        '##...##',
-        '##...##'
+        '##....##',
+        '##....##',
+        '########',
+        '########',
+        '########',
+        '##....##',
+        '##....##'
       ]
     },
     {
-      id: '4-5', world: 4, name: '巨型星芒', mode: 'score', pool: T3, seed: 4505,
-      swap: 2, extra: 2, stars: [80, 90, 95],
+      id: '4-5', world: 4, name: '巨型星芒', mode: 'exact', pool: T3, seed: 4663,
       mask: [
         '..####..',
         '..####..',
@@ -287,8 +284,7 @@
       ]
     },
     {
-      id: '4-6', world: 4, name: '環形星門', mode: 'score', pool: T3, seed: 4606,
-      swap: 2, extra: 2, stars: [80, 90, 95],
+      id: '4-6', world: 4, name: '環形星門', mode: 'exact', pool: T3, seed: 4612,
       mask: [
         '..#####..',
         '.#######.',
@@ -302,25 +298,26 @@
 
     // ===== 世界 5：繽紛花園 =====
     {
-      id: '5-1', world: 5, name: '一朵花', mode: 'score', pool: T3.concat(T4), seed: 5101,
-      swap: 2, extra: 3, stars: [68, 78, 86],
-      tip: '六格的不規則大塊登場了。',
+      id: '5-1', world: 5, name: '一朵花', mode: 'exact', pool: T3.concat(T4), seed: 5195,
+      tip: '六格的不規則大塊登場了，而且一格都不能剩。',
       mask: [
         '.###.###.',
+        '#########',
         '#########',
         '#########',
         '.#######.',
         '...###...',
         '....#....',
-        '...###...'
+        '...###...',
+        '..#####..'
       ]
     },
     {
-      id: '5-2', world: 5, name: '許願星', mode: 'score', pool: T3.concat(T4), seed: 5202,
-      swap: 2, extra: 2, stars: [74, 85, 93],
+      id: '5-2', world: 5, name: '許願星', mode: 'exact', pool: T3.concat(T4), seed: 5246,
       mask: [
         '....#....',
         '...###...',
+        '#########',
         '#########',
         '.#######.',
         '..#####..',
@@ -329,8 +326,7 @@
       ]
     },
     {
-      id: '5-3', world: 5, name: '愛心', mode: 'score', pool: T3.concat(T4), seed: 5303,
-      swap: 3, extra: 2, stars: [72, 83, 91],
+      id: '5-3', world: 5, name: '愛心', mode: 'exact', pool: T3.concat(T4), seed: 5331,
       mask: [
         '.###.###.',
         '#########',
@@ -343,8 +339,7 @@
       ]
     },
     {
-      id: '5-4', world: 5, name: '貓咪', mode: 'score', pool: T3.concat(T4), seed: 5404,
-      swap: 3, extra: 2, stars: [74, 85, 93],
+      id: '5-4', world: 5, name: '貓咪', mode: 'exact', pool: T3.concat(T4), seed: 5417,
       mask: [
         '##.....##',
         '###...###',
@@ -356,11 +351,12 @@
       ]
     },
     {
-      id: '5-5', world: 5, name: '蝴蝶', mode: 'score', pool: T3.concat(T4), seed: 5505,
-      swap: 3, extra: 3, stars: [66, 76, 84],
+      id: '5-5', world: 5, name: '蝴蝶', mode: 'exact', pool: T3.concat(T4), seed: 5585,
       mask: [
         '##.....##',
+        '###...###',
         '####.####',
+        '#########',
         '#########',
         '####.####',
         '###...###',
@@ -368,14 +364,15 @@
       ]
     },
     {
-      id: '5-6', world: 5, name: '皇冠', mode: 'score', pool: T3.concat(T4), seed: 5606,
-      swap: 3, extra: 3, stars: [72, 82, 90],
+      id: '5-6', world: 5, name: '皇冠', mode: 'exact', pool: T3.concat(T4), seed: 5624,
       mask: [
-        '#.##.##.#',
-        '#########',
-        '#########',
-        '#########',
-        '.#######.'
+        '#.##.#.##.#',
+        '###########',
+        '###########',
+        '###########',
+        '###########',
+        '###########',
+        '.#########.'
       ]
     }
   ];
